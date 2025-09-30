@@ -33,6 +33,8 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
 import java.util.*;
+import java.util.stream.Collectors;
+
 import org.openmrs.Drug;
 
 /**
@@ -177,7 +179,7 @@ public class BillableServiceResource extends BaseRestDataResource<BillableServic
             String serviceTypeUuid = context.getParameter("serviceType");
             String serviceCategoryUuid = context.getParameter("serviceCategory");
             String serviceStatus = context.getParameter("status");
-            String conceptUuid = context.getParameter("concept");
+            String conceptUuidsParam = context.getParameter("concept");
             String stockItemUuid = context.getParameter("stockItem");
             String drugUuid = context.getParameter("drugUuid");
             String name = context.getParameter("name");
@@ -254,6 +256,18 @@ public class BillableServiceResource extends BaseRestDataResource<BillableServic
                     search.getTemplate().setStockItem(stockItems.get(0));
                 }
             }
+            List<Concept> concepts = new ArrayList<>();
+            if (StringUtils.isNotBlank(conceptUuidsParam)) {
+                
+                String[] uuids = conceptUuidsParam.split(",");
+                for (String uuid : uuids) {
+                    Concept concept = Context.getConceptService().getConceptByUuid(uuid.trim());
+                    if (concept == null) {
+                        throw new ObjectNotFoundException();
+                    }
+                    concepts.add(concept);
+                }
+            }
 
             Integer startIndex = context.getStartIndex();
             Integer limit = context.getLimit();
@@ -266,6 +280,11 @@ public class BillableServiceResource extends BaseRestDataResource<BillableServic
             List<BillableService> results = service.findServices(search);
             if (results == null) {
                 results = new ArrayList<>();
+            }
+            if (!concepts.isEmpty()) {
+                results = results.stream()
+                    .filter(bs -> bs.getConcept() != null && concepts.contains(bs.getConcept()))
+                    .collect(Collectors.toList());
             }
 
             return new AlreadyPaged<BillableService>(context, results, false);
