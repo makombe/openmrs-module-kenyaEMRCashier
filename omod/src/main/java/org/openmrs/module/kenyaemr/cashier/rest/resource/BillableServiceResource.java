@@ -267,6 +267,7 @@ public class BillableServiceResource extends BaseRestDataResource<BillableServic
                     }
                     concepts.add(concept);
                 }
+                search.setConcepts(concepts);
             }
 
             Integer startIndex = context.getStartIndex();
@@ -281,11 +282,7 @@ public class BillableServiceResource extends BaseRestDataResource<BillableServic
             if (results == null) {
                 results = new ArrayList<>();
             }
-            if (!concepts.isEmpty()) {
-                results = results.stream()
-                    .filter(bs -> bs.getConcept() != null && concepts.contains(bs.getConcept()))
-                    .collect(Collectors.toList());
-            }
+            
 
             return new AlreadyPaged<BillableService>(context, results, false);
         } catch (ObjectNotFoundException e) {
