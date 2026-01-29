@@ -167,6 +167,12 @@
 			Full address and contact details to put in the receipt. Use "\n" for line break
 		</description>
 	</globalProperty>
+
+	<globalProperty>
+		<property>${project.parent.artifactId}.defaultCurrencyFormat</property>
+		<description>Default currency format to use in receipts and reports</description>
+		<defaultValue>Ksh</defaultValue>
+	</globalProperty>
 	<globalProperty>
 		<property>${project.parent.artifactId}.receipt.facilityInformation</property>
 		<description>

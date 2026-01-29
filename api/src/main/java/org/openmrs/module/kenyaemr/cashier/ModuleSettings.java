@@ -44,6 +44,8 @@ public class ModuleSettings {
 	public static final String DAILY_SHIFT_SUMMARY_REPORT_ID_PROPERTY = "kenyaemr.cashier.reports.dailyShiftSummary";
 	public static final String PAYMENTS_BY_PAYMENT_MODE_REPORT_ID_PROPERTY =
 	        "kenyaemr.cashier.reports.paymentsByPaymentMode";
+	public static final String DEFAULT_CURRENCY_SYMBOL = "kenyaemr.cashier.defaultCurrencyFormat";
+
 
 	private static final AdministrationService administrationService;
 

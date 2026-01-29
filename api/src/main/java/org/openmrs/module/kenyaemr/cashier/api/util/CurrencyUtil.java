@@ -1,6 +1,7 @@
 package org.openmrs.module.kenyaemr.cashier.api.util;
 
 import org.openmrs.api.context.Context;
+import org.openmrs.module.kenyaemr.cashier.ModuleSettings;
 import org.openmrs.module.kenyaemr.cashier.api.util.CashierModuleConstants;
 
 import java.math.BigDecimal;
@@ -52,6 +53,12 @@ public class CurrencyUtil {
      * @return the currency symbol
      */
     public static String getCurrencySymbol() {
+
+        String propertyValue =
+			        Context.getAdministrationService().getGlobalProperty(ModuleSettings.DEFAULT_CURRENCY_SYMBOL);
+        if (propertyValue != null && !propertyValue.isEmpty()) {
+        	return propertyValue;
+        }
         try {
             return Context.getMessageSourceService().getMessage(CURRENCY_SYMBOL_KEY);
         } catch (Exception e) {
