@@ -52,18 +52,8 @@ public class CurrencyUtil {
      * @return the currency symbol
      */
     public static String getCurrencySymbol() {
-        String propertyValue =
-			        Context.getAdministrationService().getGlobalProperty(ModuleSettings.DEFAULT_CURRENCY_SYMBOL);
-        if (propertyValue != null && !propertyValue.isEmpty()) {
-        	return propertyValue;
-        }
-
-        try {
-            return Context.getMessageSourceService().getMessage(CURRENCY_SYMBOL_KEY);
-        } catch (Exception e) {
-            // Fallback to default if message source is not available
-            return DEFAULT_CURRENCY_SYMBOL;
-        }
+       return Context.getAdministrationService()
+                 .getGlobalProperty(ModuleSettings.DEFAULT_CURRENCY_SYMBOL);
     }
 
     /**
