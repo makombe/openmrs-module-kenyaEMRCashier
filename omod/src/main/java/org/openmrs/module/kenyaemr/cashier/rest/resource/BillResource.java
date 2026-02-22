@@ -51,6 +51,9 @@ import org.openmrs.module.webservices.rest.web.representation.DefaultRepresentat
 import org.openmrs.module.webservices.rest.web.representation.FullRepresentation;
 import org.openmrs.module.webservices.rest.web.representation.RefRepresentation;
 import org.openmrs.module.webservices.rest.web.representation.Representation;
+import org.openmrs.module.kenyaemr.cashier.base.resource.AlreadyPagedWithLength;
+import org.openmrs.module.kenyaemr.cashier.base.resource.PagingUtil;
+import org.openmrs.module.kenyaemr.cashier.api.base.PagingInfo;
 import org.openmrs.module.webservices.rest.web.resource.impl.AlreadyPaged;
 import org.openmrs.module.webservices.rest.web.resource.impl.DelegatingResourceDescription;
 
@@ -305,9 +308,10 @@ public class BillResource extends BaseRestDataResource<Bill> {
 		searchTemplate.setCashPoint(cashPoint);
 		IBillService service = Context.getService(IBillService.class);
 
-		List<Bill> result = service
-				.getBills(new BillSearch(searchTemplate, createdOnOrAfterDate, createdOnOrBeforeDate,
-						includeVoidedBills, includeClosedBills));
+		PagingInfo pagingInfo = PagingUtil.getPagingInfoFromContext(context);
+		BillSearch billSearch = new BillSearch(searchTemplate, createdOnOrAfterDate, createdOnOrBeforeDate,
+				includeVoidedBills, includeClosedBills);
+		List<Bill> result = service.getBills(billSearch, pagingInfo);
 
 		// Filter out voided line items if includeVoidedLineItems is false
 		if (!includeVoidedLineItems) {
@@ -318,7 +322,10 @@ public class BillResource extends BaseRestDataResource<Bill> {
 			}
 		}
 
-		return new AlreadyPaged<>(context, result, false);
+		long totalCount = pagingInfo.getTotalRecordCount() != null ? pagingInfo.getTotalRecordCount() : result.size();
+		boolean hasMore = pagingInfo.getTotalRecordCount() != null
+				&& (context.getStartIndex() + result.size()) < pagingInfo.getTotalRecordCount();
+		return new AlreadyPagedWithLength<>(context, result, hasMore, totalCount);
 	}
 
 	@SuppressWarnings("unchecked")

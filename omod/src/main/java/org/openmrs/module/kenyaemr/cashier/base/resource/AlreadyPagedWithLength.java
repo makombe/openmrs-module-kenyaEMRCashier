@@ -36,6 +36,7 @@ public class AlreadyPagedWithLength<T> extends AlreadyPaged<T> {
 	public SimpleObject toSimpleObject(Converter converter) {
 		SimpleObject obj = super.toSimpleObject(converter);
 		obj.add("length", this.length);
+		obj.add("totalCount", this.length);
 		return obj;
 	}
 }
