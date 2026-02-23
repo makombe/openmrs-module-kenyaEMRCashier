@@ -16,6 +16,7 @@ package org.openmrs.module.kenyaemr.cashier.api.base.entity.db.hibernate;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import org.hibernate.Criteria;
 import org.hibernate.Query;
@@ -47,6 +48,25 @@ public class BaseHibernateRepositoryImpl implements BaseHibernateRepository {
 	public Query createQuery(String query) {
 		DbSession session = sessionFactory.getCurrentSession();
 		return session.createQuery(query);
+	}
+
+	@Override
+	public Query getNamedQuery(String name) {
+		DbSession session = sessionFactory.getCurrentSession();
+		return session.getNamedQuery(name);
+	}
+
+	@Override
+	@SuppressWarnings("unchecked")
+	public List<Object[]> executeNamedQuery(String name, Map<String, Object> params) {
+		DbSession session = sessionFactory.getCurrentSession();
+		Query query = session.getNamedQuery(name);
+		if (params != null) {
+			for (Map.Entry<String, Object> entry : params.entrySet()) {
+				query.setParameter(entry.getKey(), entry.getValue());
+			}
+		}
+		return query.list();
 	}
 
 	@Override

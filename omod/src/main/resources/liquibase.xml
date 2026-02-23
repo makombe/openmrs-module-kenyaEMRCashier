@@ -1097,4 +1097,30 @@
 		</createIndex>
 	</changeSet>
 
+	<!-- Indexes for BillSummaryByStatus query performance on large datasets -->
+	<changeSet id="cashier_bill_summary_query_indexes" author="Donald Kibet">
+		<preConditions onFail="MARK_RAN">
+			<not>
+				<indexExists indexName="cashier_bill_line_item_bill_id_voided_idx"/>
+			</not>
+		</preConditions>
+		<comment>Index for bill summary aggregation: join + filter on voided line items</comment>
+		<createIndex indexName="cashier_bill_line_item_bill_id_voided_idx" tableName="cashier_bill_line_item">
+			<column name="bill_id"/>
+			<column name="voided"/>
+		</createIndex>
+	</changeSet>
+	<changeSet id="cashier_bill_summary_date_patient_idx" author="Donald Kibet">
+		<preConditions onFail="MARK_RAN">
+			<not>
+				<indexExists indexName="cashier_bill_date_created_patient_id_idx"/>
+			</not>
+		</preConditions>
+		<comment>Composite index for bill summary when filtering by date range and/or patient</comment>
+		<createIndex indexName="cashier_bill_date_created_patient_id_idx" tableName="cashier_bill">
+			<column name="date_created"/>
+			<column name="patient_id"/>
+		</createIndex>
+	</changeSet>
+
 </databaseChangeLog>

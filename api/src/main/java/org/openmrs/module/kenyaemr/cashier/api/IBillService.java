@@ -18,6 +18,7 @@ import java.io.File;
 import java.util.List;
 
 import org.openmrs.Patient;
+import org.openmrs.module.kenyaemr.cashier.api.model.BillSummary;
 import org.openmrs.annotation.Authorized;
 import org.openmrs.module.kenyaemr.cashier.api.base.PagingInfo;
 import org.openmrs.module.kenyaemr.cashier.api.base.entity.IEntityDataService;
@@ -149,4 +150,14 @@ public interface IBillService extends IEntityDataService<Bill> {
 	@Transactional(readOnly = true)
 	@Authorized({ PrivilegeConstants.VIEW_BILLS })
 	List<Bill> getAllBillsForPatient(Patient patient);
+
+	/**
+	 * Gets bill totals aggregated by status (total, pending, paid, exempted) for the given search.
+	 * Computed at the database layer for performance.
+	 * @param billSearch The bill search criteria (date range, patient, status, etc.).
+	 * @return Summary with totalBills (cumulative), pendingBills, paidBills, exemptedBills.
+	 */
+	@Transactional(readOnly = true)
+	@Authorized({ PrivilegeConstants.VIEW_BILLS })
+	BillSummary getBillSummary(BillSearch billSearch);
 }

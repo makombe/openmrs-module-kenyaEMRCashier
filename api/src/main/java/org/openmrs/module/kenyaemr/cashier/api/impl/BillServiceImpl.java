@@ -58,6 +58,7 @@ import org.openmrs.module.kenyaemr.cashier.api.base.f.Action1;
 import org.openmrs.module.kenyaemr.cashier.api.model.Bill;
 import org.openmrs.module.kenyaemr.cashier.api.model.BillLineItem;
 import org.openmrs.module.kenyaemr.cashier.api.model.BillStatus;
+import org.openmrs.module.kenyaemr.cashier.api.model.BillSummary;
 import org.openmrs.module.kenyaemr.cashier.api.model.Deposit;
 import org.openmrs.module.kenyaemr.cashier.api.model.DepositTransaction;
 import org.openmrs.module.kenyaemr.cashier.api.model.Payment;
@@ -67,9 +68,12 @@ import org.openmrs.module.kenyaemr.cashier.api.IPaymentAttributeService;
 import org.openmrs.module.kenyaemr.cashier.api.search.BillSearch;
 import org.openmrs.module.kenyaemr.cashier.api.util.PrivilegeConstants;
 import org.openmrs.module.kenyaemr.cashier.util.Utils;
+import org.openmrs.util.OpenmrsUtil;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.io.File;
+import java.util.Calendar;
+import java.util.Date;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -85,6 +89,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.HashMap;
 import java.util.HashSet;
+
 
 /**
  * Data service implementation class for {@link Bill}s.
@@ -406,6 +411,76 @@ public class BillServiceImpl extends BaseEntityDataServiceImpl<Bill> implements 
 		List<Bill> results = getRepository().select(Bill.class, criteria);
 		removeNullLineItems(results);
 		return results;
+	}
+
+	private static final String NAMED_QUERY_BILL_SUMMARY_BY_STATUS = "BillSummaryByStatus";
+
+	@Override
+	@Authorized({ PrivilegeConstants.VIEW_BILLS })
+	@Transactional(readOnly = true)
+	public BillSummary getBillSummary(BillSearch billSearch) {
+		if (billSearch == null) {
+			throw new NullPointerException("BillSearch must not be null.");
+		}
+		List<Object[]> rows = runBillSummaryAggregation(billSearch);
+		return mapAggregationRowsToSummary(rows);
+	}
+
+	/**
+	 * Runs database aggregation of bill totals by status using the named query
+	 * {@value #NAMED_QUERY_BILL_SUMMARY_BY_STATUS} (defined in Bill.hbm.xml).
+	 * @param billSearch search criteria (dates, patient, status, voided/closed flags)
+	 * @return list of [BillStatus, sum] rows
+	 */
+	private List<Object[]> runBillSummaryAggregation(BillSearch billSearch) {
+		Map<String, Object> params = new HashMap<>();
+		params.put("includeVoided", billSearch.getIncludeVoided());
+		// Use same start/end-of-day range as BillSearch.updateCriteria so summary matches bill list
+		Date createdOnOrAfter = billSearch.getCreatedOnOrAfter();
+		Date createdOnOrBefore = billSearch.getCreatedOnOrBefore();
+		if (createdOnOrAfter != null) {
+			Calendar cal = Calendar.getInstance();
+			cal.setTime(createdOnOrAfter);
+			params.put("createdOnOrAfter", OpenmrsUtil.firstSecondOfDay(cal.getTime()));
+		} else {
+			params.put("createdOnOrAfter", null);
+		}
+		if (createdOnOrBefore != null) {
+			Calendar cal = Calendar.getInstance();
+			cal.setTime(createdOnOrBefore);
+			params.put("createdOnOrBefore", OpenmrsUtil.getLastMomentOfDay(cal.getTime()));
+		} else {
+			params.put("createdOnOrBefore", null);
+		}
+		Integer patientId = billSearch.getTemplate().getPatient() != null
+				? billSearch.getTemplate().getPatient().getPatientId()
+				: null;
+		params.put("patientId", patientId);
+		params.put("status", billSearch.getTemplate().getStatus());
+		params.put("includeClosedBills", billSearch.getIncludeClosedBills() != null
+				? billSearch.getIncludeClosedBills()
+				: true);
+		return getRepository().executeNamedQuery(NAMED_QUERY_BILL_SUMMARY_BY_STATUS, params);
+	}
+
+	private BillSummary mapAggregationRowsToSummary(List<Object[]> rows) {
+		BillSummary summary = new BillSummary();
+		BigDecimal cumulativeTotal = BigDecimal.ZERO;
+		for (Object[] row : rows) {
+			BillStatus status = (BillStatus) row[0];
+			Number sum = (Number) row[1];
+			BigDecimal amount = sum != null ? BigDecimal.valueOf(sum.doubleValue()) : BigDecimal.ZERO;
+			cumulativeTotal = cumulativeTotal.add(amount);
+			if (status == BillStatus.PAID) {
+				summary.setPaidBills(summary.getPaidBills().add(amount));
+			} else if (status == BillStatus.PENDING) {
+				summary.setPendingBills(summary.getPendingBills().add(amount));
+			} else if (status == BillStatus.EXEMPTED) {
+				summary.setExemptedBills(summary.getExemptedBills().add(amount));
+			}
+		}
+		summary.setTotalBills(cumulativeTotal);
+		return summary;
 	}
 
 	/**

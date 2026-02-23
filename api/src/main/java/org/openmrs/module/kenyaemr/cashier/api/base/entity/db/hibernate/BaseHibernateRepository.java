@@ -16,6 +16,7 @@ package org.openmrs.module.kenyaemr.cashier.api.base.entity.db.hibernate;
 import java.io.Serializable;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 import org.hibernate.Criteria;
 import org.hibernate.Query;
@@ -31,6 +32,22 @@ public interface BaseHibernateRepository {
 	 * @return a new Query Object
 	 */
 	Query createQuery(String query);
+
+	/**
+	 * Returns a named query (e.g. defined in mapping file).
+	 * @param name The name of the query
+	 * @return the Query instance
+	 */
+	Query getNamedQuery(String name);
+
+	/**
+	 * Executes a named query, binds the given parameters by name, and returns the result list.
+	 * Uses the session's getNamedQuery so it works with OpenMRS DbSession.
+	 * @param name named query name (e.g. from mapping file)
+	 * @param params map of parameter names to values (null values are allowed for optional filters)
+	 * @return list of result rows (e.g. Object[] for scalar queries)
+	 */
+	List<Object[]> executeNamedQuery(String name, Map<String, Object> params);
 
 	/**
 	 * Creates a new {@link org.hibernate.Criteria}.
