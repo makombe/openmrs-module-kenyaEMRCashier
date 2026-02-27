@@ -113,6 +113,34 @@ public interface IBillService extends IEntityDataService<Bill> {
 	File downloadBillReceipt(Bill bill);
 
 	/**
+	 * Gets a bill receipt for only the specified line items within the given bill.
+	 * This allows generating a receipt for a subset of services (e.g. lab-only receipt).
+	 * @param bill The bill the line items belong to.
+	 * @param lineItemUuids The UUIDs of the line items to include on the receipt.
+	 * @return The receipt containing only the specified bill line items.
+	 */
+	@Transactional(readOnly = true)
+	@Authorized({ PrivilegeConstants.VIEW_BILLS })
+	File downloadBillReceipt(Bill bill, java.util.List<String> lineItemUuids);
+
+	/**
+	 * Gets a bill receipt for only the specified line items and payments within the given bill.
+	 * This allows generating a receipt for a subset of services and their corresponding payments
+	 * so that the receipt reconciles correctly.
+	 *
+	 * If {@code lineItemUuids} is {@code null} or empty, all eligible line items are included.
+	 * If {@code paymentUuids} is {@code null} or empty, all payments are included.
+	 *
+	 * @param bill The bill the line items and payments belong to.
+	 * @param lineItemUuids The UUIDs of the line items to include on the receipt (optional).
+	 * @param paymentUuids The UUIDs of the payments to include on the receipt (optional).
+	 * @return The receipt containing the specified bill line items and payments.
+	 */
+	@Transactional(readOnly = true)
+	@Authorized({ PrivilegeConstants.VIEW_BILLS })
+	File downloadBillReceipt(Bill bill, java.util.List<String> lineItemUuids, java.util.List<String> paymentUuids);
+
+	/**
 	 * Closes a bill manually, preventing new items from being added.
 	 * @param bill The bill to close.
 	 * @param reason The reason for closing the bill.

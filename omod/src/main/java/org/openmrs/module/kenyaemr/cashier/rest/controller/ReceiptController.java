@@ -25,6 +25,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -33,7 +34,9 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Controller to manage the Receipt Generation Page
@@ -43,8 +46,30 @@ import java.util.HashMap;
 public class ReceiptController extends BaseRestController {
 
 	@RequestMapping(method = RequestMethod.GET, produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
-	public ResponseEntity<byte[]> get(@RequestParam(value = "billId", required = false) Integer billId) throws IOException {
+	public ResponseEntity<byte[]> get(
+	        @RequestParam(value = "billId", required = false) Integer billId,
+	        @RequestParam(value = "lineItemUuids", required = false) String lineItemUuidsParam,
+	        @RequestParam(value = "paymentsUuids", required = false) String paymentUuidsParam) throws IOException {
 
+		List<String> lineItemUuids = parseLineItemUuids(lineItemUuidsParam);
+		List<String> paymentUuids = parsePaymentUuids(paymentUuidsParam);
+		return generateReceiptResponse(billId, lineItemUuids, paymentUuids);
+	}
+
+	@RequestMapping(method = RequestMethod.POST, consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_OCTET_STREAM_VALUE)
+	public ResponseEntity<byte[]> post(@RequestBody ReceiptRequest request) throws IOException {
+		if (request == null || request.getBillId() == null) {
+			return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+		}
+
+		return generateReceiptResponse(request.getBillId(), request.getLineItemUuids(), request.getPaymentUuids());
+	}
+
+	private ResponseEntity<byte[]> generateReceiptResponse(Integer billId, List<String> lineItemUuids) {
+		return generateReceiptResponse(billId, lineItemUuids, null);
+	}
+
+	private ResponseEntity<byte[]> generateReceiptResponse(Integer billId, List<String> lineItemUuids, List<String> paymentUuids) {
 		IBillService service = Context.getService(IBillService.class);
 		Bill bill = service.getById(billId);
 
@@ -52,7 +77,19 @@ public class ReceiptController extends BaseRestController {
 			return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
 		}
 
-		File file = service.downloadBillReceipt(bill);
+		boolean hasLineItemFilter = (lineItemUuids != null && !lineItemUuids.isEmpty());
+		boolean hasPaymentFilter = (paymentUuids != null && !paymentUuids.isEmpty());
+
+		File file;
+		if (!hasLineItemFilter && !hasPaymentFilter) {
+			file = service.downloadBillReceipt(bill);
+		} else if (hasLineItemFilter && !hasPaymentFilter) {
+			file = service.downloadBillReceipt(bill, lineItemUuids);
+		} else {
+			// When payment UUIDs are specified, allow lineItemUuids to be null/empty to include all items
+			file = service.downloadBillReceipt(bill, lineItemUuids, paymentUuids);
+		}
+
 		if (file != null && file.exists()) {
 			HttpHeaders headers = new HttpHeaders();
 			headers.setContentType(MediaType.APPLICATION_OCTET_STREAM);
@@ -65,8 +102,80 @@ public class ReceiptController extends BaseRestController {
 			} catch (IOException e) {
 				return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
 			}
-		} else {
-			return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+		}
+
+		return new ResponseEntity<>(HttpStatus.NOT_FOUND);
+	}
+
+	/**
+	 * Parses the optional lineItemUuids request parameter into a list of UUIDs.
+	 * Accepts a single UUID or a comma-separated list.
+	 */
+	private List<String> parseLineItemUuids(String lineItemUuidsParam) {
+		if (StringUtils.isBlank(lineItemUuidsParam)) {
+			return Collections.emptyList();
+		}
+
+		String[] tokens = lineItemUuidsParam.split(",");
+		List<String> uuids = new ArrayList<String>();
+		for (String token : tokens) {
+			if (StringUtils.isNotBlank(token)) {
+				uuids.add(token.trim());
+			}
+		}
+		return uuids;
+	}
+
+	/**
+	 * Parses the optional paymentUuids request parameter into a list of UUIDs.
+	 * Accepts a single UUID or a comma-separated list.
+	 */
+	private List<String> parsePaymentUuids(String paymentUuidsParam) {
+		if (StringUtils.isBlank(paymentUuidsParam)) {
+			return Collections.emptyList();
+		}
+
+		String[] tokens = paymentUuidsParam.split(",");
+		List<String> uuids = new ArrayList<String>();
+		for (String token : tokens) {
+			if (StringUtils.isNotBlank(token)) {
+				uuids.add(token.trim());
+			}
+		}
+		return uuids;
+	}
+
+	/**
+	 * Request body model for generating a receipt, allowing a large list of line item UUIDs
+	 * to be sent in the JSON payload instead of the query string.
+	 */
+	public static class ReceiptRequest {
+		private Integer billId;
+		private List<String> lineItemUuids;
+		private List<String> paymentUuids;
+
+		public Integer getBillId() {
+			return billId;
+		}
+
+		public void setBillId(Integer billId) {
+			this.billId = billId;
+		}
+
+		public List<String> getLineItemUuids() {
+			return lineItemUuids;
+		}
+
+		public void setLineItemUuids(List<String> lineItemUuids) {
+			this.lineItemUuids = lineItemUuids;
+		}
+
+		public List<String> getPaymentUuids() {
+			return paymentUuids;
+		}
+
+		public void setPaymentUuids(List<String> paymentUuids) {
+			this.paymentUuids = paymentUuids;
 		}
 	}
 

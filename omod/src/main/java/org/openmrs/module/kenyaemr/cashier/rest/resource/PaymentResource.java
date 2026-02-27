@@ -20,6 +20,8 @@ import org.openmrs.module.stockmanagement.api.model.StockItem;
 import org.openmrs.module.kenyaemr.cashier.api.IBillService;
 import org.openmrs.module.kenyaemr.cashier.api.IPaymentModeService;
 import org.openmrs.module.kenyaemr.cashier.api.model.Bill;
+import org.openmrs.module.kenyaemr.cashier.api.model.BillLineItem;
+import org.openmrs.module.kenyaemr.cashier.api.model.BillStatus;
 import org.openmrs.module.kenyaemr.cashier.api.model.Payment;
 import org.openmrs.module.kenyaemr.cashier.api.model.PaymentAttribute;
 import org.openmrs.module.kenyaemr.cashier.api.model.PaymentMode;
@@ -38,6 +40,7 @@ import org.openmrs.module.webservices.rest.web.response.ObjectNotFoundException;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -73,6 +76,7 @@ public class PaymentResource extends DelegatingSubResource<Payment, Bill, BillRe
 		description.addProperty("amount");
 		description.addProperty("amountTendered");
 		description.addProperty("item");
+		description.addProperty("lineItemsToMarkPaid");
 
 		return description;
 	}
@@ -105,6 +109,27 @@ public class PaymentResource extends DelegatingSubResource<Payment, Bill, BillRe
 		for (PaymentAttribute attr : instance.getAttributes()) {
 			attr.setOwner(instance);
 		}
+	}
+
+	@PropertySetter("lineItemsToMarkPaid")
+	public void setLineItemsToMarkPaid(Payment instance, Object value) {
+		if (value == null) {
+			return;
+		}
+
+		Set<String> uuids = new HashSet<>();
+
+		if (value instanceof Collection) {
+			for (Object element : (Collection<?>) value) {
+				if (element != null) {
+					uuids.add(element.toString());
+				}
+			}
+		} else {
+			uuids.add(value.toString());
+		}
+
+		instance.setLineItemsToMarkPaid(uuids);
 	}
 
 	@PropertySetter("amount")
@@ -142,6 +167,9 @@ public class PaymentResource extends DelegatingSubResource<Payment, Bill, BillRe
 	public Payment save(Payment delegate) {
 		IBillService service = Context.getService(IBillService.class);
 		Bill bill = delegate.getBill();
+
+		validateAndMarkLineItemsToPaid(bill, delegate);
+
 		bill.addPayment(delegate);
 		service.save(bill);
 
@@ -220,6 +248,49 @@ public class PaymentResource extends DelegatingSubResource<Payment, Bill, BillRe
 		for (Payment payment : bill.getPayments()) {
 			if (payment != null && payment.getUuid().equals(paymentUUID)) {
 				return payment;
+			}
+		}
+		throw new ObjectNotFoundException();
+	}
+
+	private void validateAndMarkLineItemsToPaid(Bill bill, Payment payment) {
+		Set<String> lineItemsToMarkPaidUuids = payment.getLineItemsToMarkPaid();
+		if (lineItemsToMarkPaidUuids == null || lineItemsToMarkPaidUuids.isEmpty()) {
+			return;
+		}
+
+		BigDecimal lineItemsTotal = BigDecimal.ZERO;
+
+		for (String liUuid : lineItemsToMarkPaidUuids) {
+			BillLineItem lineItem = findBillLineItem(bill, liUuid);
+			lineItemsTotal = lineItemsTotal.add(lineItem.getTotal());
+		}
+
+		BigDecimal paymentAmount = payment.getAmount() != null
+				? payment.getAmount()
+				: payment.getAmountTendered();
+
+		if (paymentAmount == null) {
+			throw new IllegalArgumentException(
+					"Payment amount must be provided when lineItemsToMarkPaid is specified.");
+		}
+
+		if (lineItemsTotal.compareTo(paymentAmount) != 0) {
+			throw new IllegalArgumentException(
+					"Sum of selected line items (" + lineItemsTotal
+							+ ") must equal payment amount (" + paymentAmount + ").");
+		}
+
+		for (String liUuid : lineItemsToMarkPaidUuids) {
+			BillLineItem lineItem = findBillLineItem(bill, liUuid);
+			lineItem.setPaymentStatus(BillStatus.PAID);
+		}
+	}
+
+	private BillLineItem findBillLineItem(Bill bill, String lineItemUuid) {
+		for (BillLineItem candidate : bill.getLineItems()) {
+			if (candidate != null && !candidate.getVoided() && lineItemUuid.equals(candidate.getUuid())) {
+				return candidate;
 			}
 		}
 		throw new ObjectNotFoundException();

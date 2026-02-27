@@ -490,6 +490,16 @@ public class BillServiceImpl extends BaseEntityDataServiceImpl<Bill> implements 
 	 */
 	@Override
 	public File downloadBillReceipt(Bill bill) {
+		return downloadBillReceipt(bill, null, null);
+	}
+
+	@Override
+	public File downloadBillReceipt(Bill bill, List<String> lineItemUuids) {
+		return downloadBillReceipt(bill, lineItemUuids, null);
+	}
+
+	@Override
+	public File downloadBillReceipt(Bill bill, List<String> lineItemUuids, List<String> paymentUuids) {
 
 		Patient patient = bill.getPatient();
 		String fullName = patient.getGivenName().concat(" ").concat(
@@ -614,13 +624,42 @@ public class BillServiceImpl extends BaseEntityDataServiceImpl<Bill> implements 
 		billLineItemstable.setBorder(Border.NO_BORDER);
 		billLineItemstable.setWidth(UnitValue.createPercentValue(100f));
 
-		billLineItemstable.addCell(new Paragraph("Qty").setTextAlignment(TextAlignment.LEFT)).setFontSize(FONT_SIZE_12).setTextAlignment(TextAlignment.LEFT);
-		billLineItemstable.addCell(new Paragraph("Item").setTextAlignment(TextAlignment.LEFT)).setFontSize(FONT_SIZE_12).setTextAlignment(TextAlignment.LEFT);
-		billLineItemstable.addCell(new Paragraph("Price")).setFontSize(FONT_SIZE_12).setTextAlignment(TextAlignment.RIGHT);
-		billLineItemstable.addCell(new Paragraph("Total")).setFontSize(FONT_SIZE_12).setTextAlignment(TextAlignment.RIGHT);
+		billLineItemstable.addCell(new Paragraph("Qty").setTextAlignment(TextAlignment.LEFT)).setFontSize(FONT_SIZE_12)
+				.setTextAlignment(TextAlignment.LEFT);
+		billLineItemstable.addCell(new Paragraph("Item").setTextAlignment(TextAlignment.LEFT)).setFontSize(FONT_SIZE_12)
+				.setTextAlignment(TextAlignment.LEFT);
+		billLineItemstable.addCell(new Paragraph("Price")).setFontSize(FONT_SIZE_12)
+				.setTextAlignment(TextAlignment.RIGHT);
+		billLineItemstable.addCell(new Paragraph("Total")).setFontSize(FONT_SIZE_12)
+				.setTextAlignment(TextAlignment.RIGHT);
 
-		for (BillLineItem item : bill.getLineItems()) {
+		// Determine which line items to include on the receipt. If a list of UUIDs is
+		// provided, only include those items; otherwise include all eligible items.
+		List<BillLineItem> itemsToPrint = bill.getLineItems();
+		if (lineItemUuids != null && !lineItemUuids.isEmpty()) {
+			Set<String> allowedUuids = new HashSet<String>(lineItemUuids);
+			itemsToPrint = new ArrayList<BillLineItem>();
+			for (BillLineItem candidate : bill.getLineItems()) {
+				if (candidate != null && allowedUuids.contains(candidate.getUuid())) {
+					itemsToPrint.add(candidate);
+				}
+			}
+		}
+
+		BigDecimal receiptTotal = BigDecimal.ZERO;
+		for (BillLineItem item : itemsToPrint) {
+			if (item == null) {
+				continue;
+			}
+			// addBillLineItem will skip items that are still pending; only sum items that
+			// will actually be rendered
+			if (item.getPaymentStatus() != null && item.getPaymentStatus().equals(BillStatus.PENDING)) {
+				continue;
+			}
 			addBillLineItem(item, billLineItemstable, billItemSectionFont);
+			if (!item.getVoided()) {
+				receiptTotal = receiptTotal.add(item.getTotal());
+			}
 		}
 
 		float [] totalColWidth = {1f, 5f, 2f, 2f};
@@ -630,7 +669,7 @@ public class BillServiceImpl extends BaseEntityDataServiceImpl<Bill> implements 
 		totalsSection.addCell(new Paragraph(" "));
 		totalsSection.addCell(new Paragraph(" "));
 		totalsSection.addCell(new Paragraph("Total")).setFontSize(10).setTextAlignment(TextAlignment.RIGHT).setFont(helvetica).setBold();
-		totalsSection.addCell(new Paragraph(df.format(bill.getTotal()))).setFontSize(10).setTextAlignment(TextAlignment.RIGHT).setFont(helvetica).setBold();
+		totalsSection.addCell(new Paragraph(df.format(receiptTotal))).setFontSize(10).setTextAlignment(TextAlignment.RIGHT).setFont(helvetica).setBold();
 
 
 
@@ -644,8 +683,20 @@ public class BillServiceImpl extends BaseEntityDataServiceImpl<Bill> implements 
 		paymentSection.addCell(new Paragraph("Payment").setTextAlignment(TextAlignment.LEFT).setBold());
 		paymentSection.addCell(new Paragraph("Ref No").setTextAlignment(TextAlignment.RIGHT).setBold());
 		paymentSection.addCell(new Paragraph(" "));
+		// Determine which payments to include on the receipt. If a list of UUIDs is
+		// provided, only include those payments; otherwise include all bill payments.
+		List<Payment> paymentsToPrint = new ArrayList<Payment>(bill.getPayments());
+		if (paymentUuids != null && !paymentUuids.isEmpty()) {
+			Set<String> allowedPaymentUuids = new HashSet<String>(paymentUuids);
+			paymentsToPrint = new ArrayList<Payment>();
+            for (Payment candidate : bill.getPayments()) {
+				if (candidate != null && allowedPaymentUuids.contains(candidate.getUuid())) {
+					paymentsToPrint.add(candidate);
+				}
+			}
+		}
 		// append payment rows
-		for (Payment payment : bill.getPayments()) {
+		for (Payment payment : paymentsToPrint) {
 			PaymentAttribute paymentReferenceAttribute = payment.getActiveAttributes().stream().filter(attribute -> attribute.getAttributeType().getUuid().equals(PAYMENT_REFERENCE_ATTRIBUTE)).findFirst().orElse(null);
 			String paymentReferenceCode = "";
 			if (paymentReferenceAttribute != null) {
