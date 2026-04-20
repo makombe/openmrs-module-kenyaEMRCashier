@@ -1,0 +1,35 @@
+name: deploy to Dev Instance
+on:
+  push:
+    branches: [ master ]
+jobs:
+  dev_server_deployment:
+    name: deploying to 3.x dev instance
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    steps:
+    - name: executing remote connection
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.CICD_HOST }}
+        username: ${{ secrets.CICD_USERNAME }}
+        key: ${{ secrets.CICD_SECRET }}
+        port: ${{ secrets.PORT }}
+        command_timeout: 200m
+        script: |
+          cd /apps/githubworkflows/kenyaemr-modules
+          sudo rm -rf openmrs-module-kenyaemrCashier
+          sudo mkdir openmrs-module-kenyaemrCashier
+          sudo chown -R cicd:cicd openmrs-module-kenyaemrCashier
+          git config --global --add safe.directory /apps/githubworkflows/kenyaemr-modules/openmrs-module-kenyaemrCashier
+          cd /apps/githubworkflows/kenyaemr-modules/openmrs-module-kenyaemrCashier
+          git clone -b master https://${{ secrets.CICD_TOKEN }}@github.com/Palladium-hub/openmrs-module-kenyaEMRCashier.git .
+          git status
+          mvn license:format
+          sudo mvn clean install -DskipTests
+          sudo rm -rf /var/lib/OpenMRS/modules/kenyaemr.cashier-*.omod
+          sudo cp -r /apps/githubworkflows/kenyaemr-modules/openmrs-module-kenyaemrCashier/omod/target/kenyaemr.cashier-*.omod /var/lib/OpenMRS/modules/
+          sudo chown -R tomcat:tomcat /var/lib/OpenMRS/modules/
+          sudo chmod +r /var/lib/OpenMRS/modules/*.omod
+          sudo chmod 755 /var/lib/OpenMRS/modules/*.omod
+          sudo service tomcat9 restart 
