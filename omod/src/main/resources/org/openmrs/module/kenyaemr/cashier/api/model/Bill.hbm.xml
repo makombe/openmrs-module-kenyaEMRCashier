@@ -350,18 +350,5 @@
 		<property name="uuid" type="string" column="uuid" not-null="true" unique="true"/>
 	</class>
 
-	<!-- Bill summary aggregation: totals by status (non-voided line items only). -->
-	<query name="BillSummaryByStatus"><![CDATA[
-		SELECT b.status, SUM(li.price * li.quantity)
-		FROM org.openmrs.module.kenyaemr.cashier.api.model.Bill b
-		JOIN b.lineItems li
-		WHERE li.voided = false
-		AND ( :includeVoided = true OR b.voided = false )
-		AND ( :createdOnOrAfter is null OR b.dateCreated >= :createdOnOrAfter )
-		AND ( :createdOnOrBefore is null OR b.dateCreated <= :createdOnOrBefore )
-		AND ( :patientId is null OR b.patient.patientId = :patientId )
-		AND ( :status is null OR b.status = :status )
-		AND ( :includeClosedBills = true OR b.closed = false )
-		GROUP BY b.status
-	]]></query>
+</query>
 </hibernate-mapping>

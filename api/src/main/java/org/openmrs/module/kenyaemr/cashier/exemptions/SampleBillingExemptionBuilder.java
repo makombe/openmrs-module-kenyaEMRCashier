@@ -14,6 +14,8 @@
 package org.openmrs.module.kenyaemr.cashier.exemptions;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.codehaus.jackson.node.ArrayNode;
@@ -28,89 +30,162 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 
-
 /**
- * Builds a list of exemptions from json file
+ * Builds the billing exemption lists from the JSON stored in the
+ * {@code kenyaemr.billing.exemptions} global property.
+ *
+ * <p>
+ * Concept identifiers are treated as <strong>Strings</strong> so that both
+ * plain integer IDs
+ * (e.g. {@code "856"}) and UUID-style strings (e.g. {@code "856000001122243"})
+ * are handled
+ * correctly without data loss.
+ *
+ * <p>
+ * Supported exemption key patterns (see {@link BillingExemptions} for full
+ * documentation):
+ * <ul>
+ * <li>{@code all}</li>
+ * <li>{@code program:<ProgramName>}</li>
+ * <li>{@code age<N}</li>
+ * <li>{@code visitAttribute:<value>}</li>
+ * </ul>
  */
 public class SampleBillingExemptionBuilder extends BillingExemptions {
+
+    private static final Log LOG = LogFactory.getLog(SampleBillingExemptionBuilder.class);
+    private static final String EXEMPTIONS_GP = "kenyaemr.billing.exemptions";
 
     public SampleBillingExemptionBuilder() {
     }
 
     /**
-     * It is good practice to adopt a convention that will make it easy to read the config.
+     * Reads the exemptions config from the global property and populates
+     * {@link BillingExemptions#SERVICES} and {@link BillingExemptions#COMMODITIES}.
+     * Falls back to empty maps on any parse failure so that billing can still
+     * proceed.
      */
     @Override
     public void buildBillingExemptionList() {
         AdministrationService adminService = Context.getAdministrationService();
-        String exemptionConfig = adminService.getGlobalProperty("kenyaemr.billing.exemptions");
-        ObjectNode config = null;
+        String exemptionConfig = adminService.getGlobalProperty(EXEMPTIONS_GP);
 
-        if (StringUtils.isNotBlank(exemptionConfig)) {
-            ObjectMapper mapper = new ObjectMapper();
-            try {
-                config = (ObjectNode) mapper.readTree(exemptionConfig);
-            } catch (IOException e) {
-                e.printStackTrace();
-                initializeExemptionsConfig();
-                System.out.println("The configuration file for billing exemptions was found, but could not be understood. Check that the JSON object is well formed");
-                return;
-            }
+        if (StringUtils.isBlank(exemptionConfig)) {
+            LOG.warn("Global property '" + EXEMPTIONS_GP + "' is empty – no billing exemptions loaded.");
+            initializeExemptionsConfig();
+            return;
         }
 
-        if (config != null) {
-            ObjectNode configuredServices = (ObjectNode) config.get("services");
-            ObjectNode commodities = (ObjectNode) config.get("commodities");
-
-            if (configuredServices != null) {
-                Map<String, Set<Integer>> exemptedServices = mapConcepts(configuredServices);
-                BillingExemptions.setSERVICES(exemptedServices);
-            }
-
-            if (commodities != null) {
-                Map<String, Set<Integer>> exemptedCommodities = mapConcepts(commodities);
-                BillingExemptions.setCOMMODITIES(exemptedCommodities);
-            }
-        } else {
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode config;
+        try {
+            config = (ObjectNode) mapper.readTree(exemptionConfig);
+        } catch (IOException e) {
+            LOG.error("Could not parse billing exemptions JSON. Check that the value of '"
+                    + EXEMPTIONS_GP + "' is well-formed JSON.", e);
             initializeExemptionsConfig();
+            return;
+        }
+
+        JsonNode servicesNode = config.get("services");
+        if (servicesNode != null && servicesNode.isObject()) {
+            Map<String, Set<String>> exemptedServices = mapConcepts((ObjectNode) servicesNode);
+            LOG.info("Loaded billing exemptions – services: " + exemptedServices);
+            BillingExemptions.setSERVICES(exemptedServices);
+        } else {
+            LOG.warn("No 'services' section found in billing exemptions config.");
+            BillingExemptions.setSERVICES(new HashMap<>());
+        }
+
+        JsonNode commoditiesNode = config.get("commodities");
+        if (commoditiesNode != null && commoditiesNode.isObject()) {
+            Map<String, Set<String>> exemptedCommodities = mapConcepts((ObjectNode) commoditiesNode);
+            LOG.info("Loaded billing exemptions – commodities: " + exemptedCommodities);
+            BillingExemptions.setCOMMODITIES(exemptedCommodities);
+        } else {
+            LOG.warn("No 'commodities' section found in billing exemptions config.");
+            BillingExemptions.setCOMMODITIES(new HashMap<>());
         }
     }
 
     /**
-     * Maps exemption list in maps for faster access
-     * @param node
-     * @return
+     * Converts a JSON object of the form:
+     * 
+     * <pre>
+     * {
+     *   "all":         [{"concept":"167441","description":"PCR"}, ...],
+     *   "program:HIV": [{"concept":"856","description":"HIV Viral Load"}, ...]
+     * }
+     * </pre>
+     * 
+     * into a {@code Map<String, Set<String>>} keyed by exemption group with concept
+     * identifier strings as values.
+     *
+     * <p>
+     * Entries whose concept field is missing, null, or blank are silently skipped
+     * so that a single malformed entry does not break the entire configuration.
      */
-    private Map<String, Set<Integer>> mapConcepts(ObjectNode node) {
-        Map<String, Set<Integer>> exemptionList = new HashMap<String, Set<Integer>>();
-        if (node != null) {
-            Iterator<Map.Entry<String, JsonNode>> iterator = node.getFields();
-            iterator.forEachRemaining(entry -> {
-                Set<Integer> conceptSet = new HashSet<>();
-                String key = entry.getKey();
-                ArrayNode conceptIds = (ArrayNode) entry.getValue();
-                if (conceptIds.isArray() && conceptIds.size() > 0) {
-                    for (int i = 0; i < conceptIds.size(); i++) {
-                        ObjectNode conceptObj = (ObjectNode) conceptIds.get(i);
-                        Integer conceptId = conceptObj.get("concept") != null ? conceptObj.get("concept").getIntValue() : null;
-                        if (conceptId != null) {
-                            conceptSet.add((conceptId));
-                        }
-                    }
+    private Map<String, Set<String>> mapConcepts(ObjectNode node) {
+        Map<String, Set<String>> exemptionList = new HashMap<>();
+
+        Iterator<Map.Entry<String, JsonNode>> fields = node.getFields();
+        while (fields.hasNext()) {
+            Map.Entry<String, JsonNode> entry = fields.next();
+            String key = entry.getKey();
+
+            if (StringUtils.isBlank(key)) {
+                LOG.warn("Skipping exemption entry with blank key.");
+                continue;
+            }
+
+            JsonNode conceptsArray = entry.getValue();
+            if (!conceptsArray.isArray()) {
+                LOG.warn("Expected an array for exemption key '" + key + "' – skipping.");
+                continue;
+            }
+
+            Set<String> conceptSet = new HashSet<>();
+            ArrayNode conceptIds = (ArrayNode) conceptsArray;
+            for (int i = 0; i < conceptIds.size(); i++) {
+                JsonNode conceptObj = conceptIds.get(i);
+                if (conceptObj == null || !conceptObj.isObject()) {
+                    continue;
                 }
-                if (conceptSet.size() > 0) {
-                    exemptionList.put(key, conceptSet);
+                JsonNode conceptField = conceptObj.get("concept");
+                if (conceptField == null || conceptField.isNull()) {
+                    LOG.warn("Exemption entry at index " + i + " under key '" + key
+                            + "' is missing the 'concept' field – skipping.");
+                    continue;
                 }
-            });
+                // Concept values are integer concept IDs. Parse as integer to validate,
+                // then store as a trimmed string for lookup comparison.
+                String rawValue = conceptField.asText().trim();
+                try {
+                    Integer.parseInt(rawValue); // validates it is a real integer concept ID
+                    conceptSet.add(rawValue);
+                } catch (NumberFormatException e) {
+                    LOG.warn("Exemption entry at index " + i + " under key '" + key
+                            + "' has non-integer concept value '" + rawValue + "' – skipping.");
+                }
+            }
+
+            if (!conceptSet.isEmpty()) {
+                exemptionList.put(key, conceptSet);
+            } else {
+                LOG.warn("Exemption key '" + key + "' has no valid concept entries – skipping.");
+            }
         }
+
         return exemptionList;
     }
 
     /**
-     * Setting these to empty sets which are easy to work with than nulls
+     * Resets both maps to empty (non-null) collections so callers can safely
+     * iterate
+     * even when the configuration is absent or unparseable.
      */
     private void initializeExemptionsConfig() {
-        BillingExemptions.setCOMMODITIES(new HashMap<>());
         BillingExemptions.setSERVICES(new HashMap<>());
+        BillingExemptions.setCOMMODITIES(new HashMap<>());
     }
 }

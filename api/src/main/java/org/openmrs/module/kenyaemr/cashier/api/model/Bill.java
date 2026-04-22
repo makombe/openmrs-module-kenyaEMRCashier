@@ -341,17 +341,42 @@ public class Bill extends BaseOpenmrsData {
 	}
 
 	public void synchronizeBillStatus() {
-		BigDecimal totalPayments = getTotalPayments();
-		BigDecimal totalDeposits = getTotalDeposits();
-		BigDecimal totalSettled = totalPayments.add(totalDeposits);
-		
-		if (totalSettled.compareTo(BigDecimal.ZERO) > 0) {
-			boolean billFullySettled = totalSettled.compareTo(getTotal()) >= 0;
-			if (billFullySettled) {
-				this.setStatus(BillStatus.PAID);
-			} else {
-				this.setStatus(BillStatus.POSTED);
+		if (lineItems == null || lineItems.isEmpty()) {
+			this.setStatus(BillStatus.PENDING);
+			return;
+		}
+
+		boolean hasPending = false;
+		boolean allExempted = true;
+		boolean allSettled = true;
+
+		for (BillLineItem item : lineItems) {
+			if (item == null || item.getVoided())
+				continue;
+
+			BillStatus s = item.getPaymentStatus();
+
+			if (s == BillStatus.PENDING ) {
+				hasPending = true;
 			}
+
+			if (s != BillStatus.EXEMPTED) {
+				allExempted = false;
+			}
+
+			if (s != BillStatus.EXEMPTED && s != BillStatus.PAID) {
+				allSettled = false;
+			}
+		}
+
+		if (allExempted) {
+			this.setStatus(BillStatus.EXEMPTED);
+		} else if (allSettled) {
+			this.setStatus(BillStatus.PAID);
+		} else if (hasPending) {
+			this.setStatus(BillStatus.PENDING);
+		} else {
+			this.setStatus(BillStatus.POSTED);
 		}
 	}
 
