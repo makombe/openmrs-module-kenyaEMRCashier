@@ -164,11 +164,11 @@ public class GenerateBillFromOrderable implements AfterReturningAdvice {
      * @return
      */
     private boolean checkIfOrderIsExempted(ProgramWorkflowService workflowService, Order order,
-            Map<String, Set<Integer>> config) {
+            Map<String, Set<String>> config) {
         if (config == null || order == null || config.size() == 0) {
             return false;
         }
-        if (config.get("all") != null && config.get("all").contains(order.getConcept().getConceptId())) {
+        if (config.get("all") != null && config.get("all").contains(order.getConcept().getConceptId().toString())) {
             return true;
         }
         // check in programs list
@@ -189,7 +189,7 @@ public class GenerateBillFromOrderable implements AfterReturningAdvice {
                     String programName = programEntry.substring(programEntry.indexOf(":") + 1);
                     // check if patient is active in the program
                     if (activeEnrollments.contains(programName)) {
-                        if (config.get(programEntry).contains(order.getConcept().getConceptId())) {
+                        if (config.get(programEntry).contains(order.getConcept().getConceptId().toString())) {
                             return true;
                         }
                     }
@@ -199,7 +199,7 @@ public class GenerateBillFromOrderable implements AfterReturningAdvice {
 
         // check age category
         if (order.getPatient().getAge() < 5 && config.get("age<5") != null
-                && config.get("age<5").contains(order.getConcept().getConceptId())) {
+                && config.get("age<5").contains(order.getConcept().getConceptId().toString())) {
             return true;
         }
         return false;
