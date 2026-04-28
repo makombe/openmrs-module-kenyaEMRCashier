@@ -69,6 +69,7 @@ import org.openmrs.module.kenyaemr.cashier.api.model.TransactionType;
 import org.openmrs.module.kenyaemr.cashier.api.IPaymentAttributeService;
 import org.openmrs.module.kenyaemr.cashier.api.search.BillSearch;
 import org.openmrs.module.kenyaemr.cashier.api.util.PrivilegeConstants;
+import org.openmrs.module.kenyaemr.cashier.api.util.TranslationUtil;
 import org.openmrs.module.kenyaemr.cashier.util.ExemptionEvaluator;
 import org.openmrs.module.kenyaemr.cashier.util.Utils;
 import org.openmrs.util.OpenmrsUtil;
@@ -724,22 +725,22 @@ public class BillServiceImpl extends BaseEntityDataServiceImpl<Bill>
 		Table receiptHeader = new Table(headerColWidth);
 		receiptHeader.setWidth(UnitValue.createPercentValue(100f));
 
-		receiptHeader.addCell(new Paragraph("Date:")).setFontSize(FONT_SIZE_12).setTextAlignment(TextAlignment.LEFT)
+		receiptHeader.addCell(new Paragraph(TranslationUtil.getMessage("openhmis.cashier.receipt.label.date", "Date:"))).setFontSize(FONT_SIZE_12).setTextAlignment(TextAlignment.LEFT)
 				.setFont(headerSectionFont);
 		receiptHeader.addCell(new Paragraph(billDateLabel.getText())).setFontSize(FONT_SIZE_12)
 				.setTextAlignment(TextAlignment.LEFT).setFont(helvetica);
 
-		receiptHeader.addCell(new Paragraph("Receipt No:")).setFontSize(FONT_SIZE_12)
+		receiptHeader.addCell(new Paragraph(TranslationUtil.getMessage("openhmis.cashier.receipt.label.receiptNumber", "Receipt No:"))).setFontSize(FONT_SIZE_12)
 				.setTextAlignment(TextAlignment.LEFT).setFont(headerSectionFont);
 		receiptHeader.addCell(new Paragraph(bill.getReceiptNumber())).setFontSize(FONT_SIZE_12)
 				.setTextAlignment(TextAlignment.LEFT).setFont(helvetica);
 
-		receiptHeader.addCell(new Paragraph("Patient:")).setFontSize(FONT_SIZE_12).setTextAlignment(TextAlignment.LEFT)
+		receiptHeader.addCell(new Paragraph(TranslationUtil.getMessage("openhmis.cashier.receipt.label.patient", "Patient:"))).setFontSize(FONT_SIZE_12).setTextAlignment(TextAlignment.LEFT)
 				.setFont(headerSectionFont);
 		receiptHeader.addCell(new Paragraph(WordUtils.capitalizeFully(fullName + " (" + patient.getAge() + " Years)")))
 				.setFontSize(FONT_SIZE_12).setTextAlignment(TextAlignment.LEFT).setFont(helvetica);
 
-		receiptHeader.addCell(new Paragraph("Patient ID:")).setFontSize(FONT_SIZE_12)
+		receiptHeader.addCell(new Paragraph(TranslationUtil.getMessage("openhmis.cashier.receipt.label.patientId", "Patient ID:"))).setFontSize(FONT_SIZE_12)
 				.setTextAlignment(TextAlignment.LEFT).setFont(headerSectionFont);
 		receiptHeader.addCell(new Paragraph(openmrsId != null ? openmrsId.getIdentifier().toUpperCase() : ""))
 				.setFontSize(FONT_SIZE_12).setTextAlignment(TextAlignment.LEFT).setFont(helvetica);
@@ -749,13 +750,13 @@ public class BillServiceImpl extends BaseEntityDataServiceImpl<Bill>
 		billLineItemstable.setBorder(Border.NO_BORDER);
 		billLineItemstable.setWidth(UnitValue.createPercentValue(100f));
 
-		billLineItemstable.addCell(new Paragraph("Qty").setTextAlignment(TextAlignment.LEFT)).setFontSize(FONT_SIZE_12)
+		billLineItemstable.addCell(new Paragraph(TranslationUtil.getMessage("openhmis.cashier.receipt.label.quantity", "Qty")).setTextAlignment(TextAlignment.LEFT)).setFontSize(FONT_SIZE_12)
 				.setTextAlignment(TextAlignment.LEFT);
-		billLineItemstable.addCell(new Paragraph("Item").setTextAlignment(TextAlignment.LEFT)).setFontSize(FONT_SIZE_12)
+		billLineItemstable.addCell(new Paragraph(TranslationUtil.getMessage("openhmis.cashier.receipt.label.item", "Item")).setTextAlignment(TextAlignment.LEFT)).setFontSize(FONT_SIZE_12)
 				.setTextAlignment(TextAlignment.LEFT);
-		billLineItemstable.addCell(new Paragraph("Price")).setFontSize(FONT_SIZE_12)
+		billLineItemstable.addCell(new Paragraph(TranslationUtil.getMessage("openhmis.cashier.receipt.label.price", "Price"))).setFontSize(FONT_SIZE_12)
 				.setTextAlignment(TextAlignment.RIGHT);
-		billLineItemstable.addCell(new Paragraph("Total")).setFontSize(FONT_SIZE_12)
+		billLineItemstable.addCell(new Paragraph(TranslationUtil.getMessage("openhmis.cashier.receipt.label.total", "Total"))).setFontSize(FONT_SIZE_12)
 				.setTextAlignment(TextAlignment.RIGHT);
 
 		// Determine which line items to include on the receipt. If a list of UUIDs is
@@ -793,7 +794,7 @@ public class BillServiceImpl extends BaseEntityDataServiceImpl<Bill>
 
 		totalsSection.addCell(new Paragraph(" "));
 		totalsSection.addCell(new Paragraph(" "));
-		totalsSection.addCell(new Paragraph("Total")).setFontSize(10).setTextAlignment(TextAlignment.RIGHT)
+		totalsSection.addCell(new Paragraph(TranslationUtil.getMessage("openhmis.cashier.receipt.label.total", "Total"))).setFontSize(10).setTextAlignment(TextAlignment.RIGHT)
 				.setFont(helvetica).setBold();
 		totalsSection.addCell(new Paragraph(df.format(receiptTotal))).setFontSize(10)
 				.setTextAlignment(TextAlignment.RIGHT).setFont(helvetica).setBold();
@@ -805,8 +806,8 @@ public class BillServiceImpl extends BaseEntityDataServiceImpl<Bill>
 		Table paymentSection = new Table(paymentColWidth);
 		paymentSection.setWidth(UnitValue.createPercentValue(100f));
 		paymentSection.addCell(new Paragraph("  "));
-		paymentSection.addCell(new Paragraph("Payment").setTextAlignment(TextAlignment.LEFT).setBold());
-		paymentSection.addCell(new Paragraph("Ref No").setTextAlignment(TextAlignment.RIGHT).setBold());
+		paymentSection.addCell(new Paragraph(TranslationUtil.getMessage("openhmis.cashier.receipt.label.payment", "Payment")).setTextAlignment(TextAlignment.LEFT).setBold());
+		paymentSection.addCell(new Paragraph(TranslationUtil.getMessage("openhmis.cashier.receipt.label.referenceNumber", "Ref No")).setTextAlignment(TextAlignment.RIGHT).setBold());
 		paymentSection.addCell(new Paragraph(" "));
 		// Determine which payments to include on the receipt. If a list of UUIDs is
 		// provided, only include those payments; otherwise include all bill payments.
@@ -851,7 +852,7 @@ public class BillServiceImpl extends BaseEntityDataServiceImpl<Bill>
 		if (totalDeposits.compareTo(BigDecimal.ZERO) > 0) {
 			depositSection.setWidth(UnitValue.createPercentValue(100f));
 			depositSection.addCell(new Paragraph("  "));
-			depositSection.addCell(new Paragraph("Deposits").setTextAlignment(TextAlignment.LEFT).setBold());
+			depositSection.addCell(new Paragraph(TranslationUtil.getMessage("openhmis.cashier.receipt.label.deposits", "Deposits")).setTextAlignment(TextAlignment.LEFT).setBold());
 			depositSection.addCell(new Paragraph(" "));
 			depositSection.addCell(new Paragraph(" "));
 
@@ -867,7 +868,7 @@ public class BillServiceImpl extends BaseEntityDataServiceImpl<Bill>
 								transaction.getBillLineItem() != null &&
 								bill.getLineItems().contains(transaction.getBillLineItem())) {
 							depositSection.addCell(new Paragraph(" "));
-							depositSection.addCell(new Paragraph("Deposit: " + deposit.getReferenceNumber())
+							depositSection.addCell(new Paragraph(TranslationUtil.getMessage("openhmis.cashier.receipt.label.deposit", "Deposit:") + " " + deposit.getReferenceNumber())
 									.setTextAlignment(TextAlignment.LEFT)).setFontSize(10).setFont(helvetica);
 							depositSection.addCell(new Paragraph(" "));
 							depositSection.addCell(new Paragraph(df.format(transaction.getAmount()))
@@ -888,7 +889,7 @@ public class BillServiceImpl extends BaseEntityDataServiceImpl<Bill>
 			balanceSection.setWidth(UnitValue.createPercentValue(100f));
 			balanceSection.addCell(new Paragraph(" "));
 			balanceSection.addCell(new Paragraph(" "));
-			balanceSection.addCell(new Paragraph("Balance Due")).setFontSize(10).setTextAlignment(TextAlignment.RIGHT)
+			balanceSection.addCell(new Paragraph(TranslationUtil.getMessage("openhmis.cashier.receipt.label.balanceDue", "Balance Due"))).setFontSize(10).setTextAlignment(TextAlignment.RIGHT)
 					.setFont(helvetica).setBold();
 			balanceSection.addCell(new Paragraph(df.format(balance))).setFontSize(10)
 					.setTextAlignment(TextAlignment.RIGHT).setFont(helvetica).setBold();
@@ -909,9 +910,9 @@ public class BillServiceImpl extends BaseEntityDataServiceImpl<Bill>
 		doc.add(divider);
 		doc.add(balanceSection);
 		doc.add(divider);
-		doc.add(new Paragraph("You were served by " + bill.getCashier().getName()).setFont(footerSectionFont)
+		doc.add(new Paragraph(TranslationUtil.getMessage("openhmis.cashier.receipt.label.served", "You were served by") + " " + bill.getCashier().getName()).setFont(footerSectionFont)
 				.setFontSize(8).setTextAlignment(TextAlignment.CENTER));
-		doc.add(new Paragraph("GET WELL SOON").setFont(footerSectionFont).setFontSize(10)
+		doc.add(new Paragraph(TranslationUtil.getMessage("openhmis.cashier.receipt.footer.wellWishes", "GET WELL SOON")).setFont(footerSectionFont).setFontSize(10)
 				.setTextAlignment(TextAlignment.CENTER));
 
 		doc.close();

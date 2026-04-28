@@ -12,6 +12,7 @@ import org.openmrs.PatientIdentifierType;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.kenyaemr.cashier.api.model.Bill;
 import org.openmrs.module.kenyaemr.cashier.api.util.CurrencyUtil;
+import org.openmrs.module.kenyaemr.cashier.api.util.TranslationUtil;
 import org.openmrs.module.kenyaemr.cashier.api.util.pdfgeneration.layout.DocumentHeader;
 import org.openmrs.module.kenyaemr.cashier.api.util.pdfgeneration.PdfDocumentService;
 
@@ -59,9 +60,9 @@ public class BillStatementLetterheadSection implements PdfDocumentService.Letter
 
         try {
             // 1. Add facility header with document title using fluent API
-            documentHeader.setTitle("Bill Statement")
-                    .setSubtitle("Breakdown of Your Medical Care Costs")
-                    .render(doc);
+            documentHeader.setTitle(translate("openhmis.cashier.billstatement.title", "Bill Statement"))
+                .setSubtitle(translate("openhmis.cashier.billstatement.subtitle", "Breakdown of Your Medical Care Costs"))
+                .render(doc);
 
             // 2. Add patient and bill summary information
             createPatientBillSummary(doc, bill);
@@ -101,13 +102,14 @@ public class BillStatementLetterheadSection implements PdfDocumentService.Letter
                 .setPadding(4f)
                 .setVerticalAlignment(VerticalAlignment.TOP);
 
-        cell.add(new Paragraph("PATIENT INFORMATION").setBold().setFontSize(10).setMarginBottom(4f));
-        cell.add(createInfoLine("ID:", getPatientIdentifier(patient)));
-        cell.add(createInfoLine("Name:", getPatientFullName(patient)));
-        cell.add(createInfoLine("Age:", patient.getBirthdate() != null ? String.valueOf(patient.getAge()) : ""));
-        cell.add(createInfoLine("Gender:", patient.getGender() != null ? patient.getGender() : ""));
-        cell.add(createInfoLine("Bill #:", bill.getReceiptNumber()));
-        cell.add(createInfoLine("Date:", bill.getDateCreated() != null ? DATE_FORMAT.format(bill.getDateCreated()) : ""));
+        cell.add(new Paragraph(translate("openhmis.cashier.billstatement.patientInformation", "PATIENT INFORMATION"))
+                .setBold().setFontSize(10).setMarginBottom(4f));
+        cell.add(createInfoLine(translate("openhmis.cashier.billstatement.field.id", "ID:"), getPatientIdentifier(patient)));
+        cell.add(createInfoLine(translate("openhmis.cashier.billstatement.field.name", "Name:"), getPatientFullName(patient)));
+        cell.add(createInfoLine(translate("openhmis.cashier.billstatement.field.age", "Age:"), patient.getBirthdate() != null ? String.valueOf(patient.getAge()) : ""));
+        cell.add(createInfoLine(translate("openhmis.cashier.billstatement.field.gender", "Gender:"), patient.getGender() != null ? patient.getGender() : ""));
+        cell.add(createInfoLine(translate("openhmis.cashier.billstatement.field.billNumber", "Bill #:"), bill.getReceiptNumber()));
+        cell.add(createInfoLine(translate("openhmis.cashier.billstatement.field.date", "Date:"), bill.getDateCreated() != null ? DATE_FORMAT.format(bill.getDateCreated()) : ""));
 
         return cell;
     }
@@ -122,23 +124,24 @@ public class BillStatementLetterheadSection implements PdfDocumentService.Letter
                 .setVerticalAlignment(VerticalAlignment.TOP)
                 .setTextAlignment(TextAlignment.LEFT);
 
-        cell.add(new Paragraph("BILL SUMMARY").setBold().setFontSize(10).setMarginBottom(4f));
-        cell.add(createInfoLine("Status:", bill.getStatus() != null ? bill.getStatus().name() : "UNKNOWN"));
-        cell.add(createInfoLine("Total Bill:", CurrencyUtil.formatCurrency(bill.getTotal())));
-        cell.add(createInfoLine("Total Paid:", CurrencyUtil.formatCurrency(bill.getTotalPayments())));
+        cell.add(new Paragraph(translate("openhmis.cashier.billstatement.summary", "BILL SUMMARY"))
+                .setBold().setFontSize(10).setMarginBottom(4f));
+        cell.add(createInfoLine(translate("openhmis.cashier.billstatement.field.status", "Status:"), bill.getStatus() != null ? bill.getStatus().name() : "UNKNOWN"));
+        cell.add(createInfoLine(translate("openhmis.cashier.billstatement.field.totalBill", "Total Bill:"), CurrencyUtil.formatCurrency(bill.getTotal())));
+        cell.add(createInfoLine(translate("openhmis.cashier.billstatement.field.totalPaid", "Total Paid:"), CurrencyUtil.formatCurrency(bill.getTotalPayments())));
         
         // Balance Due
         java.math.BigDecimal balance = bill.getTotal().subtract(bill.getTotalPayments());
-        cell.add(createInfoLine("Balance:", CurrencyUtil.formatCurrency(balance)));
+        cell.add(createInfoLine(translate("openhmis.cashier.billstatement.field.balance", "Balance:"), CurrencyUtil.formatCurrency(balance)));
         
         // Cash Point
         if (bill.getCashPoint() != null) {
-            cell.add(createInfoLine("Cash Point:", bill.getCashPoint().getName()));
+            cell.add(createInfoLine(translate("openhmis.cashier.billstatement.field.cashPoint", "Cash Point:"), bill.getCashPoint().getName()));
         }
         
         // Cashier
         if (bill.getCashier() != null) {
-            cell.add(createInfoLine("Cashier:", bill.getCashier().getName()));
+            cell.add(createInfoLine(translate("openhmis.cashier.billstatement.field.cashier", "Cashier:"), bill.getCashier().getName()));
         }
 
         return cell;
@@ -157,7 +160,7 @@ public class BillStatementLetterheadSection implements PdfDocumentService.Letter
     // Helper methods
     private String getPatientFullName(Patient patient) {
         if (patient == null)
-            return "N/A";
+            return translate("openhmis.cashier.billstatement.na", "N/A");
 
         StringBuilder name = new StringBuilder();
         if (patient.getGivenName() != null) {
@@ -174,7 +177,7 @@ public class BillStatementLetterheadSection implements PdfDocumentService.Letter
             name.append(patient.getFamilyName());
         }
 
-        return name.length() > 0 ? name.toString() : "N/A";
+        return name.length() > 0 ? name.toString() : translate("openhmis.cashier.billstatement.na", "N/A");
     }
 
     private String getPatientIdentifier(Patient patient) {
@@ -194,8 +197,15 @@ public class BillStatementLetterheadSection implements PdfDocumentService.Letter
             // Log error but don't fail
         }
 
-        return patient.getPatientId() != null ? patient.getPatientId().toString() : "N/A";
+        return patient.getPatientId() != null ? patient.getPatientId().toString() : translate("openhmis.cashier.billstatement.na", "N/A");
     }
 
+    private String translate(String key, String defaultMessage) {
+        return TranslationUtil.getMessage(key, defaultMessage);
+    }
+
+    private String translate(String key) {
+        return TranslationUtil.getMessage(key);
+    }
 
 } 

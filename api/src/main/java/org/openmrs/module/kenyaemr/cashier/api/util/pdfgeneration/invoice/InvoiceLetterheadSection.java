@@ -6,6 +6,8 @@ import com.itextpdf.layout.element.Table;
 import com.itextpdf.layout.properties.TextAlignment;
 import com.itextpdf.layout.properties.UnitValue;
 import com.itextpdf.layout.properties.VerticalAlignment;
+import org.openmrs.module.kenyaemr.cashier.api.util.CurrencyUtil;
+import org.openmrs.module.kenyaemr.cashier.api.util.TranslationUtil;
 import org.openmrs.module.kenyaemr.cashier.api.util.pdfgeneration.layout.DocumentHeader;
 
 public class InvoiceLetterheadSection implements org.openmrs.module.kenyaemr.cashier.api.util.pdfgeneration.PdfDocumentService.LetterheadSection {
@@ -24,7 +26,7 @@ public class InvoiceLetterheadSection implements org.openmrs.module.kenyaemr.cas
 
     @Override
     public void render(Document doc, Object data) {
-        documentHeader.setTitle("Invoice").render(doc);
+        documentHeader.setTitle(translate("openhmis.cashier.invoice.title", "Invoice")).render(doc);
         createInvoiceHeader(doc, data);
     }
 
@@ -95,12 +97,12 @@ public class InvoiceLetterheadSection implements org.openmrs.module.kenyaemr.cas
         invoiceData.dateTime = bill.getDateCreated() != null
                 ? new java.text.SimpleDateFormat("dd-MMM-yyyy HH:mm").format(bill.getDateCreated())
                 : "";
-        invoiceData.totalAmount = bill.getTotal() != null ? String.format("%.2f", bill.getTotal()) : "0.00";
-        invoiceData.totalPaid = bill.getTotalPayments() != null ? String.format("%.2f", bill.getTotalPayments())
-                : "0.00";
-        invoiceData.balance = bill.getTotal() != null && bill.getTotalPayments() != null
-                ? String.format("%.2f", bill.getTotal().subtract(bill.getTotalPayments()))
-                : "0.00";
+        invoiceData.totalAmount = CurrencyUtil.formatCurrency(bill.getTotal());
+        invoiceData.totalPaid = CurrencyUtil.formatCurrency(bill.getTotalPayments());
+        invoiceData.balance = CurrencyUtil.formatCurrency(
+                bill.getTotal() != null && bill.getTotalPayments() != null
+                        ? bill.getTotal().subtract(bill.getTotalPayments())
+                        : null);
         invoiceData.status = bill.getStatus() != null ? bill.getStatus().toString() : "";
     }
 
@@ -158,13 +160,14 @@ public class InvoiceLetterheadSection implements org.openmrs.module.kenyaemr.cas
                 .setPadding(4f)
                 .setVerticalAlignment(VerticalAlignment.TOP);
 
-        cell.add(new Paragraph("PATIENT INFORMATION").setBold().setFontSize(10).setMarginBottom(4f));
-        cell.add(createInfoLine("ID:", data.patientIdentifier));
-        cell.add(createInfoLine("Name:", data.patientName));
-        cell.add(createInfoLine("Age:", data.age));
-        cell.add(createInfoLine("Gender:", data.gender));
-        cell.add(createInfoLine("County:", data.county));
-        cell.add(createInfoLine("Sub County:", data.subCounty));
+        cell.add(new Paragraph(translate("openhmis.cashier.invoice.patientInformation", "PATIENT INFORMATION"))
+                .setBold().setFontSize(10).setMarginBottom(4f));
+        cell.add(createInfoLine(translate("openhmis.cashier.invoice.field.id", "ID:"), data.patientIdentifier));
+        cell.add(createInfoLine(translate("openhmis.cashier.invoice.field.name", "Name:"), data.patientName));
+        cell.add(createInfoLine(translate("openhmis.cashier.invoice.field.age", "Age:"), data.age));
+        cell.add(createInfoLine(translate("openhmis.cashier.invoice.field.gender", "Gender:"), data.gender));
+        cell.add(createInfoLine(translate("openhmis.cashier.invoice.field.county", "County:"), data.county));
+        cell.add(createInfoLine(translate("openhmis.cashier.invoice.field.subCounty", "Sub County:"), data.subCounty));
 
         return cell;
     }
@@ -179,13 +182,14 @@ public class InvoiceLetterheadSection implements org.openmrs.module.kenyaemr.cas
                 .setVerticalAlignment(VerticalAlignment.TOP)
                 .setTextAlignment(TextAlignment.LEFT);
 
-        cell.add(new Paragraph("INVOICE SUMMARY").setBold().setFontSize(10).setMarginBottom(4f));
-        cell.add(createInfoLine("Invoice #:", data.invoiceNumber));
-        cell.add(createInfoLine("Date/Time:", data.dateTime));
-        cell.add(createInfoLine("Total Amount:", data.totalAmount));
-        cell.add(createInfoLine("Total Paid:", data.totalPaid));
-        cell.add(createInfoLine("Balance:", data.balance));
-        cell.add(createInfoLine("Status:", data.status));
+        cell.add(new Paragraph(translate("openhmis.cashier.invoice.summary", "INVOICE SUMMARY"))
+                .setBold().setFontSize(10).setMarginBottom(4f));
+        cell.add(createInfoLine(translate("openhmis.cashier.invoice.field.invoiceNumber", "Invoice#:"), data.invoiceNumber));
+        cell.add(createInfoLine(translate("openhmis.cashier.invoice.field.dateTime", "Date/Time:"), data.dateTime));
+        cell.add(createInfoLine(translate("openhmis.cashier.invoice.field.totalAmount", "Total Amount:"), data.totalAmount));
+        cell.add(createInfoLine(translate("openhmis.cashier.invoice.field.totalPaid", "Total Paid:"), data.totalPaid));
+        cell.add(createInfoLine(translate("openhmis.cashier.invoice.field.balance", "Balance:"), data.balance));
+        cell.add(createInfoLine(translate("openhmis.cashier.invoice.field.status", "Status:"), data.status));
 
         return cell;
     }
@@ -198,6 +202,14 @@ public class InvoiceLetterheadSection implements org.openmrs.module.kenyaemr.cas
                 .add(new com.itextpdf.layout.element.Text(label).setBold().setFontSize(8))
                 .add(new com.itextpdf.layout.element.Text(" " + value).setFontSize(8))
                 .setMarginBottom(1f);
+    }
+
+    private String translate(String key, String defaultMessage) {
+        return TranslationUtil.getMessage(key, defaultMessage);
+    }
+
+    private String translate(String key) {
+        return TranslationUtil.getMessage(key);
     }
 
     /**

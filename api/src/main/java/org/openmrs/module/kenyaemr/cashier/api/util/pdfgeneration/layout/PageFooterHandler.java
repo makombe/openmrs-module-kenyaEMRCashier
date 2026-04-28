@@ -11,6 +11,7 @@ import com.itextpdf.layout.element.Text;
 import com.itextpdf.layout.properties.TextAlignment;
 import org.apache.commons.lang.StringUtils;
 import org.openmrs.api.context.Context;
+import org.openmrs.module.kenyaemr.cashier.api.util.TranslationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -101,7 +102,8 @@ public class PageFooterHandler {
         // Thank you message
         if (StringUtils.isNotEmpty(config.thankYouMessage)) {
             canvas.add(new Paragraph()
-                    .add(new Text("Thank you for choosing ").setFontSize(7))
+                    .add(new Text(translate("openhmis.cashier.footer.thankYouPrefix", "Thank you for choosing "))
+                            .setFontSize(7))
                     .add(new Text(facilityName).setBold().setFontSize(7))
                     .add(new Text(" ").setFontSize(7))
                     .add(new Text(config.thankYouMessage).setFontSize(7))
@@ -131,7 +133,12 @@ public class PageFooterHandler {
             }
         }
 
-        return "No facility name configured, please add facility name in the global property kenyaemr.cashier.receipt.facilityInformation";
+        return translate("openhmis.cashier.footer.noFacilityNameConfigured",
+                "No facility name configured, please add facility name in the global property kenyaemr.cashier.receipt.facilityInformation");
+    }
+
+    private String translate(String key, String defaultMessage) {
+        return TranslationUtil.getMessage(key, defaultMessage);
     }
 
     /**
@@ -178,7 +185,7 @@ public class PageFooterHandler {
             log.warn("Failed to extract document number from data", e);
         }
 
-        return "N/A";
+        return translate("openhmis.cashier.footer.na", "N/A");
     }
 
     /**
@@ -192,13 +199,14 @@ public class PageFooterHandler {
                 Context.getAuthenticatedUser().getId().toString() : "N/A";
 
         return new Paragraph()
-                .add(new Text("Computer-generated document. DOC NO: ").setFontSize(6))
+                .add(new Text(translate("openhmis.cashier.footer.systemDocumentNote", "Computer-generated document. DOC NO: ")).setFontSize(6))
                 .add(new Text(documentNumber).setBold().setFontSize(6))
                 .add(new Text(" | ").setFontSize(6))
                 .add(new Text(generatedDateTime).setFontSize(6))
                 .add(new Text(" | ").setFontSize(6))
                 .add(new Text(generatedBy + " (" + generatedByUserId + ")").setItalic().setFontSize(6))
-                .add(new Text(" | Page ").setFontSize(6))
+                .add(new Text(" | ").setFontSize(6))
+                .add(new Text(translate("openhmis.cashier.footer.pagePrefix", "Page ")).setFontSize(6))
                 .add(new Text(String.valueOf(pageNumber)).setBold().setFontSize(6))
                 .setTextAlignment(TextAlignment.CENTER)
                 .setMarginTop(LINE_SPACING);

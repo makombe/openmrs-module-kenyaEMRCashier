@@ -9,6 +9,7 @@ import com.itextpdf.layout.element.Text;
 import com.itextpdf.layout.properties.TextAlignment;
 import org.apache.commons.lang.StringUtils;
 import org.openmrs.api.context.Context;
+import org.openmrs.module.kenyaemr.cashier.api.util.TranslationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,7 +87,8 @@ public class DocumentFooter {
         // Thank you message
         if (StringUtils.isNotEmpty(config.thankYouMessage)) {
             doc.add(new Paragraph()
-                    .add(new Text("Thank you for choosing ").setFontSize(7))
+                    .add(new Text(translate("openhmis.cashier.footer.thankYouPrefix", "Thank you for choosing "))
+                            .setFontSize(7))
                     .add(new Text(facilityName).setBold().setFontSize(7))
                     .add(new Text(" ").setFontSize(7))
                     .add(new Text(config.thankYouMessage).setFontSize(7))
@@ -125,7 +127,12 @@ public class DocumentFooter {
             }
         }
 
-        return "No facility name configured, please add facility name in the global property kenyaemr.cashier.receipt.facilityInformation";
+        return translate("openhmis.cashier.footer.noFacilityNameConfigured",
+                "No facility name configured, please add facility name in the global property kenyaemr.cashier.receipt.facilityInformation");
+    }
+
+    private String translate(String key, String defaultMessage) {
+        return TranslationUtil.getMessage(key, defaultMessage);
     }
 
     /**
@@ -138,7 +145,7 @@ public class DocumentFooter {
                 : "system";
 
         return new Paragraph()
-                .add(new Text("Computer-generated document. DOC NO: ").setFontSize(6))
+                .add(new Text(translate("openhmis.cashier.footer.systemDocumentNote", "Computer-generated document. DOC NO: ")).setFontSize(6))
                 .add(new Text(documentNumber).setBold().setFontSize(6))
                 .add(new Text(" | ").setFontSize(6))
                 .add(new Text(generatedDate).setFontSize(6))
@@ -191,7 +198,7 @@ public class DocumentFooter {
             log.warn("Failed to extract document number from data", e);
         }
 
-        return "N/A";
+        return translate("openhmis.cashier.footer.na", "N/A");
     }
 
     /**

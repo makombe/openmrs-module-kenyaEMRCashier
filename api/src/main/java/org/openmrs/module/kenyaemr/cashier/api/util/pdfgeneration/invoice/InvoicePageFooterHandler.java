@@ -2,6 +2,7 @@ package org.openmrs.module.kenyaemr.cashier.api.util.pdfgeneration.invoice;
 
 import com.itextpdf.kernel.pdf.PdfPage;
 import com.itextpdf.layout.Canvas;
+import org.openmrs.module.kenyaemr.cashier.api.util.TranslationUtil;
 import org.openmrs.module.kenyaemr.cashier.api.util.pdfgeneration.layout.PageFooterHandler;
 
 public class InvoicePageFooterHandler implements org.openmrs.module.kenyaemr.cashier.api.util.pdfgeneration.PdfDocumentService.PageFooterHandler {
@@ -10,9 +11,15 @@ public class InvoicePageFooterHandler implements org.openmrs.module.kenyaemr.cas
 
     public InvoicePageFooterHandler() {
         PageFooterHandler.FooterConfig footerConfig = new PageFooterHandler.FooterConfig()
-                .setCustomFooterText("This invoice is computer-generated and valid without signature.")
-                .setPaymentTerms("Payment due within 30 days of invoice date.")
-                .setThankYouMessage("and get well soon. For billing inquiries, contact our finance department.");
+                .setCustomFooterText(TranslationUtil.getMessage(
+                        "openhmis.cashier.invoice.footer.customText",
+                        "This invoice is computer-generated and valid without signature."))
+                .setPaymentTerms(TranslationUtil.getMessage(
+                        "openhmis.cashier.invoice.footer.paymentTerms",
+                        "Payment due within 30 days of invoice date."))
+                .setThankYouMessage(TranslationUtil.getMessage(
+                        "openhmis.cashier.invoice.footer.thankYouMessage",
+                        "and get well soon. For billing inquiries, contact our finance department."));
 
         this.pageFooterHandler = new PageFooterHandler(footerConfig);
     }

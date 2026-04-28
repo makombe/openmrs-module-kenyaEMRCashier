@@ -11,6 +11,7 @@ import org.openmrs.module.kenyaemr.cashier.api.model.Bill;
 import org.openmrs.module.kenyaemr.cashier.api.model.BillLineItem;
 import org.openmrs.module.kenyaemr.cashier.api.model.Payment;
 import org.openmrs.module.kenyaemr.cashier.api.util.CurrencyUtil;
+import org.openmrs.module.kenyaemr.cashier.api.util.TranslationUtil;
 
 import java.math.BigDecimal;
 import java.text.DecimalFormat;
@@ -48,11 +49,11 @@ public class InvoiceContentSection implements org.openmrs.module.kenyaemr.cashie
 
         // Clean table headers without background colors - these will repeat on each
         // page
-        itemsTable.addHeaderCell(createHeaderCell("No"));
-        itemsTable.addHeaderCell(createHeaderCell("Chargeable service/Item", TextAlignment.LEFT));
-        itemsTable.addHeaderCell(createHeaderCell("Quantity"));
-        itemsTable.addHeaderCell(createHeaderCell("Unit price", TextAlignment.LEFT));
-        itemsTable.addHeaderCell(createHeaderCell("Total", TextAlignment.LEFT));
+        itemsTable.addHeaderCell(createHeaderCell(translate("openhmis.cashier.invoice.table.header.no", "No")));
+        itemsTable.addHeaderCell(createHeaderCell(translate("openhmis.cashier.invoice.table.header.itemDescription", "Chargeable service/Item"), TextAlignment.LEFT));
+        itemsTable.addHeaderCell(createHeaderCell(translate("openhmis.cashier.invoice.table.header.quantity", "Quantity")));
+        itemsTable.addHeaderCell(createHeaderCell(translate("openhmis.cashier.invoice.table.header.unitPrice", "Unit price"), TextAlignment.LEFT));
+        itemsTable.addHeaderCell(createHeaderCell(translate("openhmis.cashier.invoice.table.header.total", "Total"), TextAlignment.LEFT));
 
         // Add bill line items
         int itemNumber = 1;
@@ -72,7 +73,7 @@ public class InvoiceContentSection implements org.openmrs.module.kenyaemr.cashie
      */
     private void createTableSummary(Document doc, Bill bill) {
         // Simple total summary aligned to the right
-        Paragraph totalSummary = new Paragraph("Total: " + CurrencyUtil.formatCurrency(bill.getTotal()))
+        Paragraph totalSummary = new Paragraph(translate("openhmis.cashier.invoice.label.total", "Total:") + " " + CurrencyUtil.formatCurrency(bill.getTotal()))
                 .setBold()
                 .setFontSize(10)
                 .setTextAlignment(TextAlignment.RIGHT)
@@ -93,7 +94,7 @@ public class InvoiceContentSection implements org.openmrs.module.kenyaemr.cashie
         } else if (item.getBillableService() != null && item.getBillableService().getName() != null) {
             return item.getBillableService().getName();
         }
-        return "Service/Item";
+        return translate("openhmis.cashier.invoice.item.fallback", "Service/Item");
     }
 
     /**
@@ -101,7 +102,7 @@ public class InvoiceContentSection implements org.openmrs.module.kenyaemr.cashie
      */
     private String formatQuantity(Integer quantity) {
         if (quantity == null) {
-            return "1";
+            return translate("openhmis.cashier.invoice.quantity.default", "1");
         }
         return String.valueOf(quantity);
     }
@@ -176,11 +177,11 @@ public class InvoiceContentSection implements org.openmrs.module.kenyaemr.cashie
                 .setMarginBottom(TABLE_MARGIN);
 
         // Add payment table headers
-        paymentTable.addHeaderCell(createHeaderCell("No"));
-        paymentTable.addHeaderCell(createHeaderCell("Payment Method", TextAlignment.LEFT));
-        paymentTable.addHeaderCell(createHeaderCell("Amount Paid", TextAlignment.LEFT));
-        paymentTable.addHeaderCell(createHeaderCell("Balance Due", TextAlignment.LEFT));
-        paymentTable.addHeaderCell(createHeaderCell("Date & Time", TextAlignment.LEFT));
+        paymentTable.addHeaderCell(createHeaderCell(translate("openhmis.cashier.invoice.payment.header.no", "No")));
+        paymentTable.addHeaderCell(createHeaderCell(translate("openhmis.cashier.invoice.payment.header.method", "Payment Method"), TextAlignment.LEFT));
+        paymentTable.addHeaderCell(createHeaderCell(translate("openhmis.cashier.invoice.payment.header.amountPaid", "Amount Paid"), TextAlignment.LEFT));
+        paymentTable.addHeaderCell(createHeaderCell(translate("openhmis.cashier.invoice.payment.header.balanceDue", "Balance Due"), TextAlignment.LEFT));
+        paymentTable.addHeaderCell(createHeaderCell(translate("openhmis.cashier.invoice.payment.header.dateTime", "Date & Time"), TextAlignment.LEFT));
 
         // Calculate running balance
         BigDecimal totalBillAmount = bill.getTotal();
@@ -188,7 +189,7 @@ public class InvoiceContentSection implements org.openmrs.module.kenyaemr.cashie
 
         // Add initial balance row
         paymentTable.addCell(createCenterCell("1"));
-        paymentTable.addCell(createLeftCell("Bill Total"));
+        paymentTable.addCell(createLeftCell(translate("openhmis.cashier.invoice.payment.billTotal", "Bill Total")));
         paymentTable.addCell(createLeftCell(CurrencyUtil.formatCurrency(totalBillAmount)));
         paymentTable.addCell(createLeftCell(CurrencyUtil.formatCurrency(runningBalance)));
         paymentTable.addCell(createLeftCell("-"));
@@ -233,7 +234,7 @@ public class InvoiceContentSection implements org.openmrs.module.kenyaemr.cashie
                 .useAllAvailableWidth()
                 .setMarginBottom(TABLE_MARGIN);
 
-        summaryTable.addCell(createSummaryCell("Balance:", true));
+        summaryTable.addCell(createSummaryCell(translate("openhmis.cashier.invoice.label.balance", "Balance:"), true));
         summaryTable.addCell(createSummaryCell(CurrencyUtil.formatCurrency(remainingBalance), false));
 
         doc.add(summaryTable);
@@ -252,5 +253,13 @@ public class InvoiceContentSection implements org.openmrs.module.kenyaemr.cashie
                 .setPadding(4f);
 
         return cell;
+    }
+
+    private String translate(String key, String defaultMessage) {
+        return TranslationUtil.getMessage(key, defaultMessage);
+    }
+
+    private String translate(String key) {
+        return TranslationUtil.getMessage(key);
     }
 }

@@ -12,6 +12,7 @@ import com.itextpdf.layout.properties.VerticalAlignment;
 import com.itextpdf.io.image.ImageDataFactory;
 import org.apache.commons.lang.StringUtils;
 import org.openmrs.api.context.Context;
+import org.openmrs.module.kenyaemr.cashier.api.util.TranslationUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -142,6 +143,10 @@ public class DocumentHeader {
         return node.has(fieldName) ? node.get(fieldName).asText() : defaultValue;
     }
 
+    private String translate(String key, String defaultMessage) {
+        return TranslationUtil.getMessage(key, defaultMessage);
+    }
+
     /**
      * Create header layout with logo, facility name/tagline, and optional document
      * title/subtitle
@@ -153,7 +158,9 @@ public class DocumentHeader {
         }
 
         // Create the text block (facility name + tagline)
-        String facilityNameText = StringUtils.isNotEmpty(info.facilityName) ? info.facilityName : "Facility Name Not Configured";
+        String facilityNameText = StringUtils.isNotEmpty(info.facilityName)
+                ? info.facilityName
+                : translate("openhmis.cashier.documentHeader.defaultFacilityName", "Facility Name Not Configured");
         Paragraph facilityName = new Paragraph(facilityNameText)
                 .setFontSize(14)
                 .setBold()
@@ -240,7 +247,8 @@ public class DocumentHeader {
                     .setMargin(0));
         } else {
             headerTable.addCell(new com.itextpdf.layout.element.Cell()
-                    .add(new Paragraph("LOGO").setFontSize(22).setBold().setTextAlignment(TextAlignment.CENTER))
+                    .add(new Paragraph(translate("openhmis.cashier.layout.logo.placeholder", "LOGO"))
+                            .setFontSize(22).setBold().setTextAlignment(TextAlignment.CENTER))
                     .setBorder(null)
                     .setVerticalAlignment(VerticalAlignment.MIDDLE)
                     .setTextAlignment(TextAlignment.CENTER)
@@ -278,27 +286,32 @@ public class DocumentHeader {
         if (info.contacts != null && info.contacts.hasAny()) {
             StringBuilder contactLine = new StringBuilder();
             if (StringUtils.isNotEmpty(info.contacts.tel)) {
-                contactLine.append("Tel: ").append(info.contacts.tel);
+                contactLine.append(translate("openhmis.cashier.documentHeader.contact.tel", "Tel: "))
+                        .append(info.contacts.tel);
             }
             if (StringUtils.isNotEmpty(info.contacts.email)) {
                 if (contactLine.length() > 0)
                     contactLine.append(" | ");
-                contactLine.append("Email: ").append(info.contacts.email);
+                contactLine.append(translate("openhmis.cashier.documentHeader.contact.email", "Email: "))
+                        .append(info.contacts.email);
             }
             if (StringUtils.isNotEmpty(info.contacts.address)) {
                 if (contactLine.length() > 0)
                     contactLine.append(" | ");
-                contactLine.append("Address: ").append(info.contacts.address);
+                contactLine.append(translate("openhmis.cashier.documentHeader.contact.address", "Address: "))
+                        .append(info.contacts.address);
             }
             if (StringUtils.isNotEmpty(info.contacts.web)) {
                 if (contactLine.length() > 0)
                     contactLine.append(" | ");
-                contactLine.append("Web: ").append(info.contacts.web);
+                contactLine.append(translate("openhmis.cashier.documentHeader.contact.web", "Web: "))
+                        .append(info.contacts.web);
             }
             if (StringUtils.isNotEmpty(info.contacts.emergency)) {
                 if (contactLine.length() > 0)
                     contactLine.append(" | ");
-                contactLine.append("Emergency: ").append(info.contacts.emergency);
+                contactLine.append(translate("openhmis.cashier.documentHeader.contact.emergency", "Emergency: "))
+                        .append(info.contacts.emergency);
             }
             Paragraph contactParagraph = new Paragraph(contactLine.toString())
                     .setFontSize(6)

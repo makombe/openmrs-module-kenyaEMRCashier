@@ -328,6 +328,10 @@
 		<lang>es</lang>
 		<file>messages_es.properties</file>
 	</messages>
+	<messages>
+		<lang>am</lang>
+		<file>messages_am.properties</file>
+	</messages>
 	<!-- /Internationalization -->
 
 	<filter>

@@ -12,6 +12,7 @@ import org.openmrs.module.kenyaemr.cashier.api.model.BillLineItem;
 import org.openmrs.module.kenyaemr.cashier.api.model.Payment;
 import org.openmrs.module.kenyaemr.cashier.api.model.PaymentAttribute;
 import org.openmrs.module.kenyaemr.cashier.api.util.CurrencyUtil;
+import org.openmrs.module.kenyaemr.cashier.api.util.TranslationUtil;
 import org.openmrs.module.kenyaemr.cashier.api.util.pdfgeneration.PdfDocumentService;
 
 import java.math.BigDecimal;
@@ -81,7 +82,7 @@ public class BillStatementContentSection implements PdfDocumentService.ContentSe
      * Create detailed bill items table with timestamps
      */
     private void createDetailedBillItemsTable(Document doc, Bill bill) {
-        doc.add(new Paragraph("Detailed list of services/items provided")
+        doc.add(new Paragraph(translate("openhmis.cashier.billstatement.detailsTitle", "Detailed list of services/items provided"))
                 .setBold()
                 .setFontSize(10)
                 .setTextAlignment(TextAlignment.LEFT)
@@ -95,12 +96,12 @@ public class BillStatementContentSection implements PdfDocumentService.ContentSe
                 .setKeepTogether(false);
 
         // Table headers
-        itemsTable.addHeaderCell(createHeaderCell("No"));
-        itemsTable.addHeaderCell(createHeaderCell("Service/Item Description", TextAlignment.LEFT));
-        itemsTable.addHeaderCell(createHeaderCell("Qty"));
-        itemsTable.addHeaderCell(createHeaderCell("Unit Price", TextAlignment.LEFT));
-        itemsTable.addHeaderCell(createHeaderCell("Total", TextAlignment.LEFT));
-        itemsTable.addHeaderCell(createHeaderCell("Date Added", TextAlignment.CENTER));
+        itemsTable.addHeaderCell(createHeaderCell(translate("openhmis.cashier.billstatement.table.header.no", "No")));
+        itemsTable.addHeaderCell(createHeaderCell(translate("openhmis.cashier.billstatement.table.header.description", "Service/Item Description"), TextAlignment.LEFT));
+        itemsTable.addHeaderCell(createHeaderCell(translate("openhmis.cashier.billstatement.table.header.qty", "Qty")));
+        itemsTable.addHeaderCell(createHeaderCell(translate("openhmis.cashier.billstatement.table.header.unitPrice", "Unit Price"), TextAlignment.LEFT));
+        itemsTable.addHeaderCell(createHeaderCell(translate("openhmis.cashier.billstatement.table.header.total", "Total"), TextAlignment.LEFT));
+        itemsTable.addHeaderCell(createHeaderCell(translate("openhmis.cashier.billstatement.table.header.dateAdded", "Date Added"), TextAlignment.CENTER));
 
         // Add bill line items in chronological order
         int itemNumber = 1;
@@ -132,7 +133,7 @@ public class BillStatementContentSection implements PdfDocumentService.ContentSe
 
                     // Date added with time
                     String dateAdded = item.getDateCreated() != null ? SHORT_DATE_FORMAT.format(item.getDateCreated())
-                            : "N/A";
+                            : translate("openhmis.cashier.billstatement.na", "N/A");
                     itemsTable.addCell(createCenterCell(dateAdded));
                 }
             }
@@ -145,7 +146,7 @@ public class BillStatementContentSection implements PdfDocumentService.ContentSe
      * Create payment history table
      */
     private void createPaymentHistoryTable(Document doc, Bill bill) {
-        doc.add(new Paragraph("Payment history")
+        doc.add(new Paragraph(translate("openhmis.cashier.billstatement.paymentHistory.title", "Payment history"))
                 .setBold()
                 .setFontSize(10)
                 .setTextAlignment(TextAlignment.LEFT)
@@ -153,7 +154,7 @@ public class BillStatementContentSection implements PdfDocumentService.ContentSe
 
         Set<Payment> payments = bill.getPayments();
         if (payments == null || payments.isEmpty()) {
-            doc.add(new Paragraph("No payments recorded for this bill.")
+            doc.add(new Paragraph(translate("openhmis.cashier.billstatement.paymentHistory.empty", "No payments recorded for this bill."))
                     .setItalic()
                     .setTextAlignment(TextAlignment.CENTER)
                     .setMarginBottom(SECTION_SPACING));
@@ -167,13 +168,13 @@ public class BillStatementContentSection implements PdfDocumentService.ContentSe
                 .setMarginBottom(TABLE_MARGIN);
 
         // Table headers
-        paymentTable.addHeaderCell(createHeaderCell("No"));
-        paymentTable.addHeaderCell(createHeaderCell("Date", TextAlignment.CENTER));
-        paymentTable.addHeaderCell(createHeaderCell("Method", TextAlignment.CENTER));
-        paymentTable.addHeaderCell(createHeaderCell("Tendered", TextAlignment.RIGHT));
-        paymentTable.addHeaderCell(createHeaderCell("Applied", TextAlignment.RIGHT));
-        paymentTable.addHeaderCell(createHeaderCell("Cashier", TextAlignment.CENTER));
-        paymentTable.addHeaderCell(createHeaderCell("Reference", TextAlignment.CENTER));
+        paymentTable.addHeaderCell(createHeaderCell(translate("openhmis.cashier.billstatement.payment.header.no", "No")));
+        paymentTable.addHeaderCell(createHeaderCell(translate("openhmis.cashier.billstatement.payment.header.date", "Date"), TextAlignment.CENTER));
+        paymentTable.addHeaderCell(createHeaderCell(translate("openhmis.cashier.billstatement.payment.header.method", "Method"), TextAlignment.CENTER));
+        paymentTable.addHeaderCell(createHeaderCell(translate("openhmis.cashier.billstatement.payment.header.tendered", "Tendered"), TextAlignment.RIGHT));
+        paymentTable.addHeaderCell(createHeaderCell(translate("openhmis.cashier.billstatement.payment.header.applied", "Applied"), TextAlignment.RIGHT));
+        paymentTable.addHeaderCell(createHeaderCell(translate("openhmis.cashier.billstatement.payment.header.cashier", "Cashier"), TextAlignment.CENTER));
+        paymentTable.addHeaderCell(createHeaderCell(translate("openhmis.cashier.billstatement.payment.header.reference", "Reference"), TextAlignment.CENTER));
 
         // Add payment records
         int paymentNumber = 1;
@@ -183,7 +184,7 @@ public class BillStatementContentSection implements PdfDocumentService.ContentSe
 
                 // Payment date
                 String paymentDate = payment.getDateCreated() != null ? DATE_FORMAT.format(payment.getDateCreated())
-                        : "N/A";
+                        : translate("openhmis.cashier.billstatement.na", "N/A");
                 paymentTable.addCell(createCenterCell(paymentDate));
 
                 // Payment method
@@ -197,7 +198,7 @@ public class BillStatementContentSection implements PdfDocumentService.ContentSe
                 paymentTable.addCell(createRightCell(CurrencyUtil.formatCurrency(payment.getAmount())));
 
                 // Cashier
-                String cashier = payment.getCreator() != null ? payment.getCreator().getDisplayString() : "N/A";
+                String cashier = payment.getCreator() != null ? payment.getCreator().getDisplayString() : translate("openhmis.cashier.billstatement.na", "N/A");
                 paymentTable.addCell(createCenterCell(cashier));
 
                 // Reference number
@@ -213,7 +214,7 @@ public class BillStatementContentSection implements PdfDocumentService.ContentSe
      * Create bill summary with accounting standards
      */
     private void createBillSummary(Document doc, Bill bill) {
-        doc.add(new Paragraph("Bill Summary")
+        doc.add(new Paragraph(translate("openhmis.cashier.billstatement.summary.title", "Bill Summary"))
                 .setBold()
                 .setFontSize(12)
                 .setTextAlignment(TextAlignment.LEFT)
@@ -231,13 +232,13 @@ public class BillStatementContentSection implements PdfDocumentService.ContentSe
         BigDecimal balanceDue = totalBillAmount.subtract(totalPayments);
 
         // Summary rows
-        summaryTable.addCell(createSummaryLabelCell("Total Bill Amount:"));
+        summaryTable.addCell(createSummaryLabelCell(translate("openhmis.cashier.billstatement.summary.totalBillAmount", "Total Bill Amount:")));
         summaryTable.addCell(createSummaryValueCell(CurrencyUtil.formatCurrency(totalBillAmount)));
 
-        summaryTable.addCell(createSummaryLabelCell("Total Payments:"));
+        summaryTable.addCell(createSummaryLabelCell(translate("openhmis.cashier.billstatement.summary.totalPayments", "Total Payments:")));
         summaryTable.addCell(createSummaryValueCell(CurrencyUtil.formatCurrency(totalPayments)));
 
-        summaryTable.addCell(createSummaryLabelCell("Balance Due:"));
+        summaryTable.addCell(createSummaryLabelCell(translate("openhmis.cashier.billstatement.summary.balanceDue", "Balance Due:")));
         summaryTable.addCell(createSummaryValueCell(CurrencyUtil.formatCurrency(balanceDue)));
 
         doc.add(summaryTable);
@@ -323,14 +324,14 @@ public class BillStatementContentSection implements PdfDocumentService.ContentSe
         } else if (item.getBillableService() != null && item.getBillableService().getName() != null) {
             return item.getBillableService().getName();
         }
-        return "Service/Item";
+        return translate("openhmis.cashier.billstatement.item.fallback", "Service/Item");
     }
 
     private String getPaymentMethod(Payment payment) {
         if (payment.getInstanceType() != null) {
             return payment.getInstanceType().getName();
         }
-        return "Cash";
+        return translate("openhmis.cashier.billstatement.payment.method.cash", "Cash");
     }
 
     private String getPaymentReference(Payment payment) {
@@ -342,6 +343,14 @@ public class BillStatementContentSection implements PdfDocumentService.ContentSe
                 }
             }
         }
-        return "N/A";
+        return translate("openhmis.cashier.billstatement.na", "N/A");
+    }
+
+    private String translate(String key, String defaultMessage) {
+        return TranslationUtil.getMessage(key, defaultMessage);
+    }
+
+    private String translate(String key) {
+        return TranslationUtil.getMessage(key);
     }
 }
