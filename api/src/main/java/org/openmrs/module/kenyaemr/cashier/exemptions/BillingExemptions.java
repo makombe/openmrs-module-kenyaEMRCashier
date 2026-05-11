@@ -145,32 +145,24 @@ public abstract class BillingExemptions {
     }
 
     private static boolean isExemptedInMap(Map<String, Set<String>> exemptionMap,
-            Patient patient,
-            String conceptIdentifier) {
+            Patient patient, String conceptIdentifier) {
         for (Map.Entry<String, Set<String>> entry : exemptionMap.entrySet()) {
             String key = entry.getKey();
             Set<String> concepts = entry.getValue();
             boolean isWildcard = isWildcardKey(key);
 
-            /*
-             * For non-wildcard keys: skip early if this concept is not listed.
-             * For wildcard keys : skip the concept check entirely — ANY concept
-             * is exempt when the patient meets the criteria.
-             */
             if (!isWildcard && (concepts == null || !containsConcept(concepts, conceptIdentifier))) {
                 continue;
             }
 
-            if (patientMeetsCriteria(key, patient)) {
-                LOG.debug(String.format(
-                        "Patient %d is exempt from concept %s via key '%s'",
-                        patient.getPatientId(), conceptIdentifier, key));
+            boolean meetsCriteria = patientMeetsCriteria(key, patient);
+
+            if (meetsCriteria) {
                 return true;
             }
         }
         return false;
     }
-
 
     /**
      * Returns {@code true} when the key represents a "wildcard" rule, meaning
@@ -183,8 +175,9 @@ public abstract class BillingExemptions {
         if (key == null) {
             return false;
         }
-        String lk = key.trim().toLowerCase();
-        return "all".equals(lk) || lk.endsWith(ALL_SUFFIX);
+        // Only keys ending in ":all" (e.g. "program:HIV:all", "location:X:all")
+        // are concept wildcards. The plain "all" key still respects the concept list.
+        return key.trim().toLowerCase().endsWith(ALL_SUFFIX);
     }
 
     /**
