@@ -9,6 +9,7 @@ import org.openmrs.TestOrder;
 import org.openmrs.User;
 import org.openmrs.Visit;
 import org.openmrs.VisitAttribute;
+import org.openmrs.api.AdministrationService;
 import org.openmrs.api.OrderService;
 import org.openmrs.api.ProgramWorkflowService;
 import org.openmrs.api.context.Context;
@@ -57,102 +58,112 @@ public class GenerateBillFromOrderable implements AfterReturningAdvice {
     public static String IMAGING_CLASS_CONCEPT_UUID = "8caa332c-efe4-4025-8b18-3398328e1323";
     public static String MEDICAL_SUPPLIES_CLASS_CONCEPT_UUID = "0dcf23d4-3008-4d8e-b12c-4ec95d1cfd97";
     public static String PAYMENT_TYPE_VISIT_ATTRIBUTE_UUID = "e6cb0c3b-04b0-4117-9bc6-ce24adbda802";
+    public static final String GP_AUTO_GENERATE_BILL = "kenyaemr.cashier.allowAutoGenerationOfBills";
 
     @Override
     public void afterReturning(Object returnValue, Method method, Object[] args, Object target) throws Throwable {
+        boolean autoGenerateBills = shouldAutoGenerateBills();
+        if (!autoGenerateBills) {
+            return;
+        } else {
+            System.out.println("Auto generation of bills is enabled. Intercepting order to generate bill line item...");
+            try {
+                // Extract the Order object from the arguments
+                ProgramWorkflowService workflowService = Context.getProgramWorkflowService();
+                if (method.getName().equals("saveOrder") && args.length > 0 && args[0] instanceof Order) {
+                    Order order = (Order) args[0];
 
-        try {
-            // Extract the Order object from the arguments
-            ProgramWorkflowService workflowService = Context.getProgramWorkflowService();
-            if (method.getName().equals("saveOrder") && args.length > 0 && args[0] instanceof Order) {
-                Order order = (Order) args[0];
-
-                if (order == null) {
-                    return;
-                }
-
-                if (order.getAction().equals(Order.Action.DISCONTINUE)) {
-                    /**
-                     * Canceling an order does the following:
-                     * 1. creates a discontinuation order
-                     * 2. but does not set fulfiller status
-                     */
-                    if (order.getFulfillerStatus() == null && order.getDateStopped() == null
-                            && order.getPreviousOrder() != null) {
-                        // check for an associated bill and void it
-                        Order cancelledOrder = order.getPreviousOrder();
-                        voidOrderBillItem(cancelledOrder);
+                    if (order == null) {
                         return;
                     }
-                }
 
-                if (order.getAction().equals(Order.Action.REVISE)
-                        || order.getAction().equals(Order.Action.RENEW)) {
-                    return;
-                }
-                Patient patient = order.getPatient();
-                String cashierUUID = Context.getAuthenticatedUser().getUuid();
-                String cashpointUUID = Utils.getDefaultLocation().getUuid();
-                if (order instanceof DrugOrder) {
-                    DrugOrder drugOrder = (DrugOrder) order;
-                    Integer drugID = drugOrder.getDrug() != null ? drugOrder.getDrug().getDrugId() : 0;
-                    double drugQuantity = drugOrder.getQuantity() != null ? drugOrder.getQuantity() : 0.0;
-                    // we expect a one-to-one mapping of drug to stock item in the inventory module
-                    List<StockItem> stockItems = stockService.getStockItemByDrug(drugID); 
-                    if (!stockItems.isEmpty()) {
-                        // check from the list for all exemptions
-                        boolean isExempted = checkIfOrderIsExempted(workflowService, order,
-                                BillingExemptions.COMMODITIES);
-                        BillStatus lineItemStatus = isExempted ? BillStatus.EXEMPTED : BillStatus.PENDING;
-                        addBillItemToBill(order, patient, cashierUUID, cashpointUUID, stockItems.get(0), null,
-                                (int) drugQuantity, order.getDateActivated(), lineItemStatus);
+                    if (order.getAction().equals(Order.Action.DISCONTINUE)) {
+                        /**
+                         * Canceling an order does the following:
+                         * 1. creates a discontinuation order
+                         * 2. but does not set fulfiller status
+                         */
+                        if (order.getFulfillerStatus() == null && order.getDateStopped() == null
+                                && order.getPreviousOrder() != null) {
+                            // check for an associated bill and void it
+                            Order cancelledOrder = order.getPreviousOrder();
+                            voidOrderBillItem(cancelledOrder);
+                            return;
+                        }
                     }
-                } else if (MEDICAL_SUPPLIES_CLASS_CONCEPT_UUID.equals(order.getConcept().getConceptClass().getUuid())) { // non-pharms
-                    MedicalSupplyOrder medicalSupplyOrder = (MedicalSupplyOrder) order;
-                    double supplyQuantity = medicalSupplyOrder.getQuantity() != null ? medicalSupplyOrder.getQuantity()
-                            : 0.0;
-                    List<StockItem> stockItems = stockService
-                            .getStockItemByConcept(medicalSupplyOrder.getConcept().getConceptId());
 
-                    if (!stockItems.isEmpty()) {
-                        // check from the list for all exemptions
-                        boolean isExempted = checkIfOrderIsExempted(workflowService, order,
-                                BillingExemptions.COMMODITIES);
-                        BillStatus lineItemStatus = isExempted ? BillStatus.EXEMPTED : BillStatus.PENDING;
-                        addBillItemToBill(order, patient, cashierUUID, cashpointUUID, stockItems.get(0), null,
-                                (int) supplyQuantity, order.getDateActivated(), lineItemStatus);
+                    if (order.getAction().equals(Order.Action.REVISE)
+                            || order.getAction().equals(Order.Action.RENEW)) {
+                        return;
                     }
-                } else if (order instanceof TestOrder
-                        || PROCEDURE_CLASS_CONCEPT_UUID.equals(order.getConcept().getConceptClass().getUuid())
-                        || IMAGING_CLASS_CONCEPT_UUID.equals(order.getConcept().getConceptClass().getUuid())) {
-                    BillableService searchTemplate = new BillableService();
-                    searchTemplate.setConcept(order.getConcept());
-                    searchTemplate.setServiceStatus(BillableServiceStatus.ENABLED);
+                    Patient patient = order.getPatient();
+                    String cashierUUID = Context.getAuthenticatedUser().getUuid();
+                    String cashpointUUID = Utils.getDefaultLocation().getUuid();
+                    if (order instanceof DrugOrder) {
+                        DrugOrder drugOrder = (DrugOrder) order;
+                        Integer drugID = drugOrder.getDrug() != null ? drugOrder.getDrug().getDrugId() : 0;
+                        double drugQuantity = drugOrder.getQuantity() != null ? drugOrder.getQuantity() : 0.0;
+                        // we expect a one-to-one mapping of drug to stock item in the inventory module
+                        List<StockItem> stockItems = stockService.getStockItemByDrug(drugID);
+                        if (!stockItems.isEmpty()) {
+                            // check from the list for all exemptions
+                            boolean isExempted = checkIfOrderIsExempted(workflowService, order,
+                                    BillingExemptions.COMMODITIES);
+                            BillStatus lineItemStatus = isExempted ? BillStatus.EXEMPTED : BillStatus.PENDING;
+                            addBillItemToBill(order, patient, cashierUUID, cashpointUUID, stockItems.get(0), null,
+                                    (int) drugQuantity, order.getDateActivated(), lineItemStatus);
+                        }
+                    } else if (MEDICAL_SUPPLIES_CLASS_CONCEPT_UUID
+                            .equals(order.getConcept().getConceptClass().getUuid())) { // non-pharms
+                        MedicalSupplyOrder medicalSupplyOrder = (MedicalSupplyOrder) order;
+                        double supplyQuantity = medicalSupplyOrder.getQuantity() != null
+                                ? medicalSupplyOrder.getQuantity()
+                                : 0.0;
+                        List<StockItem> stockItems = stockService
+                                .getStockItemByConcept(medicalSupplyOrder.getConcept().getConceptId());
 
-                    IBillableItemsService service = Context.getService(IBillableItemsService.class);
-                    List<BillableService> searchResult = service
-                            .findServices(new BillableServiceSearch(searchTemplate));
+                        if (!stockItems.isEmpty()) {
+                            // check from the list for all exemptions
+                            boolean isExempted = checkIfOrderIsExempted(workflowService, order,
+                                    BillingExemptions.COMMODITIES);
+                            BillStatus lineItemStatus = isExempted ? BillStatus.EXEMPTED : BillStatus.PENDING;
+                            addBillItemToBill(order, patient, cashierUUID, cashpointUUID, stockItems.get(0), null,
+                                    (int) supplyQuantity, order.getDateActivated(), lineItemStatus);
+                        }
+                    } else if (order instanceof TestOrder
+                            || PROCEDURE_CLASS_CONCEPT_UUID.equals(order.getConcept().getConceptClass().getUuid())
+                            || IMAGING_CLASS_CONCEPT_UUID.equals(order.getConcept().getConceptClass().getUuid())) {
+                        BillableService searchTemplate = new BillableService();
+                        searchTemplate.setConcept(order.getConcept());
+                        searchTemplate.setServiceStatus(BillableServiceStatus.ENABLED);
 
-                    if (!searchResult.isEmpty()) {
-                        boolean isExempted = checkIfOrderIsExempted(workflowService, order, BillingExemptions.SERVICES);
-                        BillStatus lineItemStatus = isExempted ? BillStatus.EXEMPTED : BillStatus.PENDING;
-                        addBillItemToBill(order, patient, cashierUUID, cashpointUUID, null, searchResult.get(0), 1,
-                                order.getDateActivated(), lineItemStatus);
+                        IBillableItemsService service = Context.getService(IBillableItemsService.class);
+                        List<BillableService> searchResult = service
+                                .findServices(new BillableServiceSearch(searchTemplate));
+
+                        if (!searchResult.isEmpty()) {
+                            boolean isExempted = checkIfOrderIsExempted(workflowService, order,
+                                    BillingExemptions.SERVICES);
+                            BillStatus lineItemStatus = isExempted ? BillStatus.EXEMPTED : BillStatus.PENDING;
+                            addBillItemToBill(order, patient, cashierUUID, cashpointUUID, null, searchResult.get(0), 1,
+                                    order.getDateActivated(), lineItemStatus);
+                        }
+                    }
+                } else if (method.getName().equals("voidOrder") && args.length > 0 && args[0] instanceof Order) {
+                    // if cancel order then check existing bill and set it voided
+                    Order order = (Order) args[0];
+                    if (orderService.getOrderByUuid(order.getUuid()) != null) {
+                        voidOrderBillItem(order);
+                    } else {
+                        System.out.println("Order does not exist");
                     }
                 }
-            } else if (method.getName().equals("voidOrder") && args.length > 0 && args[0] instanceof Order) {
-                // if cancel order then check existing bill and set it voided
-                Order order = (Order) args[0];
-                if (orderService.getOrderByUuid(order.getUuid()) != null) {
-                    voidOrderBillItem(order);
-                } else {
-                    System.out.println("Order does not exist");
-                }
+            } catch (Exception e) {
+                System.err.println("Error intercepting order before creation: " + e.getMessage());
+                e.printStackTrace();
             }
-        } catch (Exception e) {
-            System.err.println("Error intercepting order before creation: " + e.getMessage());
-            e.printStackTrace();
         }
+
     }
 
     /**
@@ -269,7 +280,8 @@ public class GenerateBillFromOrderable implements AfterReturningAdvice {
                 if (activeBill.isClosed() || activeBill.getVoided()) {
                     // If the existing bill is closed or voided, create a new one
                     System.out.println(
-                            "Existing bill is closed or voided, creating new bill for patient: " + patient.getPatientId());
+                            "Existing bill is closed or voided, creating new bill for patient: "
+                                    + patient.getPatientId());
                     activeBill = null;
                 } else {
                     // If the existing bill is PAID, set it back to PENDING to allow new items
@@ -344,11 +356,11 @@ public class GenerateBillFromOrderable implements AfterReturningAdvice {
 
             // check if the bill has any other bill line items if not void or close the bill
             Bill bill = billLineItem.getBill();
-            
+
             // Check if all line items in the bill are voided
             boolean allItemsVoided = bill.getLineItems().stream()
                     .allMatch(item -> item.getVoided());
-            
+
             if (allItemsVoided) {
                 // If all items are voided, void the entire bill
                 bill.setVoided(true);
@@ -381,5 +393,15 @@ public class GenerateBillFromOrderable implements AfterReturningAdvice {
 
         BigDecimal totalQuantity = stockItemInventoryResult.getTotals().get(0).getQuantity();
         return totalQuantity != null && totalQuantity.compareTo(BigDecimal.ZERO) > 0;
+    }
+
+    private boolean shouldAutoGenerateBills() {
+        AdministrationService administrationService = Context.getAdministrationService();
+        org.openmrs.GlobalProperty gp = administrationService.getGlobalPropertyObject(GP_AUTO_GENERATE_BILL);
+        if (gp == null || gp.getPropertyValue() == null) {
+            // Default to false if property doesn't exist (backward compatibility)
+            return false;
+        }
+        return gp.getPropertyValue().trim().equalsIgnoreCase("true");
     }
 }
